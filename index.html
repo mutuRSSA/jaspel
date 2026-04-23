@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Beranda - SIM JASPEL RSUD</title>
+    <script>
+    // Proteksi Halaman: Cek apakah user sudah login
+    if (!localStorage.getItem("userRole")) {
+        window.location.href = "login.html"; // Tendang balik ke login jika belum ada role
+    }
+</script>
+    <script src="config.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6f9; color: #333; }
+        
+        .hero-section {
+            background: linear-gradient(135deg, #004085 0%, #0062cc 100%);
+            color: white;
+            padding: 40px 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,64,133,0.2);
+            text-align: center;
+        }
+        .hero-section h2 { margin: 0 0 10px 0; font-size: 28px; }
+        .hero-section p { margin: 0; font-size: 16px; opacity: 0.9; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-top: 4px solid #17a2b8;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card h3 { margin: 0 0 10px 0; font-size: 14px; color: #6c757d; text-transform: uppercase; }
+        .stat-card .value { font-size: 28px; font-weight: bold; color: #212529; }
+        .stat-card .desc { font-size: 12px; color: #28a745; font-weight: bold; margin-top: 5px; }
+
+        .quick-actions {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .quick-actions h3 { margin: 0 0 20px 0; font-size: 18px; color: #004085; border-bottom: 2px solid #eee; padding-bottom: 10px;}
+        
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #495057;
+            font-weight: bold;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .action-btn:hover { background: #e9ecef; border-color: #ced4da; color: #0056b3; }
+        .action-btn i { font-size: 30px; margin-bottom: 10px; }
+
+        /* Warna border stat card spesifik */
+        .sc-orange { border-top-color: #fd7e14; }
+        .sc-green { border-top-color: #28a745; }
+        .sc-purple { border-top-color: #6f42c1; }
+    </style>
+</head>
+<body>
+<script>renderNavbar();</script>
+
+<div class="main-container">
+    
+    <div class="hero-section">
+        <h2>Selamat Datang di SIM JASPEL</h2>
+        <p>Sistem Informasi Manajemen Jasa Pelayanan RSUD Saras Adyatma</p>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="stat-card">
+            <h3>Status Siklus Saat Ini</h3>
+            <div class="value">Aktif</div>
+            <div class="desc" style="color:#17a2b8;">Periode Berjalan</div>
+        </div>
+        <div class="stat-card sc-orange">
+            <h3>Mode Perhitungan</h3>
+            <div class="value">Live</div>
+            <div class="desc" style="color:#fd7e14;">Otomatis tersinkronisasi</div>
+        </div>
+        <div class="stat-card sc-green">
+            <h3>Arsip Tersimpan</h3>
+            <div class="value">Aman</div>
+            <div class="desc">Terkunci di Buku Besar</div>
+        </div>
+        <div class="stat-card sc-purple">
+            <h3>Keamanan Data</h3>
+            <div class="value">Enkripsi</div>
+            <div class="desc" style="color:#6f42c1;">Google Cloud Server</div>
+        </div>
+    </div>
+
+    <div class="quick-actions">
+        <h3>🚀 Akses Cepat Modul Utama</h3>
+        <div class="action-grid">
+            <a href="admin_karyawan.html" class="action-btn">
+                <i>👥</i> Database Karyawan
+            </a>
+            <a href="admin_kinerja.html" class="action-btn">
+                <i>📈</i> Penilaian Kinerja
+            </a>
+            <a href="admin_variabel.html" class="action-btn">
+                <i>⚙️</i> Master Variabel
+            </a>
+            <a href="entry_massal.html" class="action-btn">
+                <i>📥</i> Entry Data Massal
+            </a>
+            <a href="admin_database.html" class="action-btn" style="border-color: #b8daff; background: #e2eafc;">
+                <i>📂</i> Verifikasi Pasien
+            </a>
+            <a href="admin_laporan.html" class="action-btn" style="border-color: #c3e6cb; background: #d4edda;">
+                <i>📊</i> Cetak Laporan SPJ
+            </a>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
