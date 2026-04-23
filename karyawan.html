@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Database Karyawan</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; font-size: 13px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 100%; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        
+        .controls-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        input[type="text"], input[type="number"], select { padding: 8px; border: 1px solid #ccc; border-radius: 5px; outline: none; width: 100%; box-sizing: border-box;}
+        .search-box { width: 250px !important; }
+        
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
+        th { background: #004085; color: white; }
+        tr:hover { background-color: #f8f9fa; }
+        
+        .btn { padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .btn-refresh { background: #28a745; color: white; font-size: 13px;}
+        .btn-edit { background: #17a2b8; color: white; }
+        
+        /* Modal Style */
+        .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index: 1000; }
+        .modal-content { background:white; width: 700px; margin: 30px auto; padding: 25px; border-radius:8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 85vh; display: flex; flex-direction: column;}
+        .modal-body { overflow-y: auto; padding-right: 10px; margin-bottom: 15px; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group label { display: block; font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #555; text-transform: uppercase; }
+        
+        .section-title { grid-column: 1 / -1; background: #e9ecef; padding: 8px 10px; font-weight: bold; color: #004085; border-radius: 4px; margin-top: 10px; font-size: 12px;}
+        .highlight-section { background: #ffeeba; color: #856404; }
+        
+        /* Style untuk Indikator Kinerja */
+        .kinerja-box { background: #f8f9fa; padding: 5px 8px; border-radius: 5px; border: 1px solid #ddd; display: inline-block; min-width: 100px;}
+        .kinerja-item { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;}
+        .k-hijau { color: #28a745; font-weight: bold; }
+        .k-merah { color: #dc3545; font-weight: bold; }
+    </style>
+    <script>
+    // Proteksi Halaman: Cek apakah user sudah login
+    if (!localStorage.getItem("userRole")) {
+        window.location.href = "login.html"; // Tendang balik ke login jika belum ada role
+    }
+</script>
+    <script src="config.js"></script>
+</head>
+<body>
+<script>renderNavbar();</script>
+<div class="card">
+    <div class="header">
+        <h2 style="margin:0; color: #004085;">👥 Database Induk Karyawan</h2>
+        <button class="btn btn-refresh" style="padding:8px 15px;" onclick="loadData()">🔄 Segarkan Data</button>
+    </div>
+
+    <div class="controls-container">
+        <select id="limitData" onchange="renderTableData()" style="width: 120px;">
+            <option value="15">15 Baris</option>
+            <option value="50">50 Baris</option>
+            <option value="100">100 Baris</option>
+            <option value="All">Semua</option>
+        </select>
+        
+        <input type="text" id="search" class="search-box" placeholder="Cari NIK, Nama, atau Unit..." onkeyup="debounceSearch()">
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>NIK / NIP</th>
+                <th>Nama Lengkap & Gelar</th>
+                <th>Pend. / Jabatan</th>
+                <th>Unit Utama</th>
+                <th>Status</th>
+                <th>Capaian Kinerja</th> <th style="width: 100px; text-align:center;">Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="bodyTabel">
+            <tr><td colspan="7" style="text-align:center; padding: 20px;">Memuat data karyawan...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div id="modalKaryawan" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="margin-top:0; color:#004085; border-bottom: 2px solid #eee; padding-bottom:10px;">📋 Detail & Evaluasi Karyawan</h3>
+        
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="section-title">Identitas Dasar</div>
+                <div class="form-group"><label>NIK (ID Utama - Terkunci)</label><input type="text" id="k_nik" disabled style="background:#e9ecef;"></div>
+                <div class="form-group"><label>NIP</label><input type="text" id="k_nip"></div>
+                <div class="form-group"><label>Nama Lengkap & Gelar</label><input type="text" id="k_nama"></div>
+                <div class="form-group"><label>Nomor Rekening</label><input type="text" id="k_rekening" placeholder="Cth: 1234567890 (Bank BPD)"></div>
+                
+                <div class="section-title highlight-section">⚖️ Penilaian Kinerja & Kedisiplinan Jaspel</div>
+                <div class="form-group">
+                    <label>Produktivitas (Ketik 1 utk 100%, 0.8 utk 80%)</label>
+                    <input type="number" step="0.01" min="0" max="1" id="k_produktivitas">
+                </div>
+                <div class="form-group">
+                    <label>Disiplin (Ketik 1 utk 100%, 0.5 utk 50%)</label>
+                    <input type="number" step="0.01" min="0" max="1" id="k_disiplin">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Sanksi Hukuman Berat</label>
+                    <select id="k_hukuman">
+                        <option value="0">0% - Tidak Ada Sanksi</option>
+                        <option value="0.25">25% - Sanksi Ringan/Sedang</option>
+                        <option value="0.5">50% - Sanksi Berat</option>
+                    </select>
+                </div>
+
+                <div class="section-title">Profesi & Posisi Utama</div>
+                <div class="form-group"><label>Pendidikan</label><input type="text" id="k_pendidikan"></div>
+                <div class="form-group"><label>Jabatan</label><input type="text" id="k_jabatan"></div>
+                <div class="form-group"><label>Unit</label><input type="text" id="k_unit"></div>
+                <div class="form-group"><label>TMT</label><input type="text" id="k_tmt"></div>
+                
+                <div class="form-group"><label>Status Kepegawaian</label>
+                    <select id="k_status" onchange="toggleGolongan()">
+                        <option value="PNS">PNS</option>
+                        <option value="PPPK">PPPK</option>
+                        <option value="Kontrak">Kontrak</option>
+                        <option value="Tetap">Tetap</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="container_golongan" style="display: none;">
+                    <label>Golongan (Khusus PNS)</label>
+                    <select id="k_golongan">
+                        <option value="-">- Pilih Golongan -</option>
+                        <option value="IV">Golongan IV (Potongan PPh 15%)</option>
+                        <option value="III">Golongan III (Potongan PPh 5%)</option>
+                        <option value="II">Golongan II (Potongan PPh 0%)</option>
+                        <option value="I">Golongan I (Potongan PPh 0%)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;"><label>Jabatan Non Struktural</label><input type="text" id="k_jab_non_struk"></div>
+                
+                <div class="section-title">Analisis Risiko & Beban Kerja</div>
+                <div class="form-group"><label>Risiko Infeksi</label>
+                    <select id="k_risiko"><option value="Tidak ada">Tidak ada</option><option value="Rendah">Rendah</option><option value="Sedang">Sedang</option><option value="Tinggi">Tinggi</option></select>
+                </div>
+                <div class="form-group"><label>Radiasi</label>
+                    <select id="k_radiasi"><option value="Tidak ada">Tidak ada</option><option value="Rendah">Rendah</option><option value="Sedang">Sedang</option><option value="Tinggi">Tinggi</option></select>
+                </div>
+                <div class="form-group"><label>Emergensi</label>
+                    <select id="k_emergensi"><option value="Non Emergency">Non Emergency</option><option value="Emergency">Emergency</option></select>
+                </div>
+                <div class="form-group"><label>Pola Kerja</label>
+                    <select id="k_pola_kerja"><option value="Non Rotasi">Non Rotasi</option><option value="Rotasi Sebagian">Rotasi Sebagian</option><option value="Rotasi Penuh">Rotasi Penuh</option></select>
+                </div>
+                <div class="form-group"><label>Oncall</label>
+                    <select id="k_oncall"><option value="Tidak">Tidak</option><option value="Ya">Ya</option></select>
+                </div>
+                <div class="form-group"><label>Prestasi Kerja</label><input type="text" id="k_prestasi"></div>
+
+                <div class="section-title">Kepanitiaan & Tim Tambahan</div>
+                <div class="form-group"><label>Nama Tim 1</label><input type="text" id="k_tim1"></div>
+                <div class="form-group"><label>Jabatan Tim 1</label><input type="text" id="k_jab_tim1"></div>
+                <div class="form-group"><label>Nama Tim 2</label><input type="text" id="k_tim2"></div>
+                <div class="form-group"><label>Jabatan Tim 2</label><input type="text" id="k_jab_tim2"></div>
+                <div class="form-group"><label>Nama Tim 3</label><input type="text" id="k_tim3"></div>
+                <div class="form-group"><label>Jabatan Tim 3</label><input type="text" id="k_jab_tim3"></div>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; border-top: 1px solid #eee; padding-top: 15px;">
+            <button class="btn btn-refresh" style="flex: 1; padding: 12px; font-size:14px;" id="btnSimpan" onclick="simpanKaryawan()">💾 Simpan Perubahan</button>
+            <button class="btn" style="flex: 1; padding: 12px; font-size:14px; background:#ddd; color:#333;" onclick="tutupModal()">Batal</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let dataKaryawan = [];
+    let dataFiltered = [];
+
+    async function loadData() {
+        document.getElementById('bodyTabel').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Mengambil data dari Server...</td></tr>';
+        try {
+            const response = await fetch(WEB_APP_URL, { 
+                method: "POST", 
+                headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+                body: JSON.stringify({ action: "get_karyawan" }) 
+            });
+            const res = await response.json();
+            dataKaryawan = res.data;
+            applyFilter();
+        } catch (e) {
+            document.getElementById('bodyTabel').innerHTML = '<tr><td colspan="7" style="color:red; text-align:center;">Gagal memuat data.</td></tr>';
+        }
+    }
+
+    let timerPencarian;
+    function debounceSearch() {
+        clearTimeout(timerPencarian);
+        timerPencarian = setTimeout(applyFilter, 400); 
+    }
+
+    function applyFilter() {
+        const txt = document.getElementById('search').value.toLowerCase();
+        dataFiltered = dataKaryawan.filter(k => {
+            return String(k.nama||"").toLowerCase().includes(txt) || 
+                   String(k.nik||"").toLowerCase().includes(txt) ||
+                   String(k.unit||"").toLowerCase().includes(txt);
+        });
+        renderTableData();
+    }
+
+    function renderTableData() {
+        const body = document.getElementById('bodyTabel');
+        const limitVal = document.getElementById('limitData').value;
+        const disp = limitVal === "All" ? dataFiltered : dataFiltered.slice(0, parseInt(limitVal));
+
+        let html = "";
+        if (disp.length === 0) { html = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Tidak ada data karyawan ditemukan.</td></tr>'; } 
+        else {
+            disp.forEach(k => {
+                let nilaiProd = Math.round((k.produktivitas !== undefined ? k.produktivitas : 1) * 100);
+                let nilaiDis = Math.round((k.disiplin !== undefined ? k.disiplin : 1) * 100);
+                
+                let classProd = nilaiProd < 100 ? "k-merah" : "k-hijau";
+                let classDis = nilaiDis < 100 ? "k-merah" : "k-hijau";
+                
+                let badgeHukuman = k.hukuman > 0 ? `<span style="background:#dc3545; color:white; padding:2px 5px; border-radius:3px; font-size:10px; margin-top:4px; display:inline-block;">Sanksi ${k.hukuman * 100}%</span>` : "";
+                
+                html += `<tr>
+                    <td><strong style="color:#004085;">${k.nik}</strong><br><small style="color:#666;">${k.nip||'-'}</small></td>
+                    <td style="font-weight:bold;">${k.nama} <br>${badgeHukuman}</td>
+                    <td>${k.pendidikan}<br><small style="color:#007bff; font-weight:bold;">${k.jabatan}</small></td>
+                    <td>${k.unit}</td>
+                    <td><span style="background:#e9ecef; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">${k.status}</span></td>
+                    <td>
+                        <div class="kinerja-box">
+                            <div class="kinerja-item"><span>Prod:</span> <span class="${classProd}">${nilaiProd}%</span></div>
+                            <div class="kinerja-item"><span>Disiplin:</span> <span class="${classDis}">${nilaiDis}%</span></div>
+                        </div>
+                    </td>
+                    <td style="text-align:center;">
+                        <button class="btn btn-edit" onclick="bukaModal('${k.nik}')">👁️ Edit</button>
+                    </td>
+                </tr>`;
+            });
+        }
+        body.innerHTML = html;
+    }
+
+    // Fungsi Toggle Tampilan Golongan
+    function toggleGolongan() {
+        const stat = document.getElementById('k_status').value;
+        const containerGolongan = document.getElementById('container_golongan');
+        if(stat === 'PNS') {
+            containerGolongan.style.display = 'block';
+        } else {
+            containerGolongan.style.display = 'none';
+        }
+    }
+
+    function tutupModal() { document.getElementById('modalKaryawan').style.display = 'none'; }
+
+    function bukaModal(nik) {
+        const k = dataKaryawan.find(x => x.nik == nik);
+        if(!k) return;
+        
+        document.getElementById('k_nik').value = k.nik;
+        document.getElementById('k_nip').value = k.nip;
+        document.getElementById('k_nama').value = k.nama;
+        document.getElementById('k_rekening').value = k.rekening || "";
+        
+        document.getElementById('k_produktivitas').value = k.produktivitas;
+        document.getElementById('k_disiplin').value = k.disiplin;
+        document.getElementById('k_hukuman').value = k.hukuman;
+
+        document.getElementById('k_pendidikan').value = k.pendidikan;
+        document.getElementById('k_jabatan').value = k.jabatan;
+        document.getElementById('k_unit').value = k.unit;
+        document.getElementById('k_tmt').value = k.tmt;
+        document.getElementById('k_status').value = k.status;
+        
+        // Setup dropdown Golongan & sesuaikan visibilitas
+        let gol = k.golongan || "-";
+        if (!["I", "II", "III", "IV"].includes(gol)) gol = "-";
+        document.getElementById('k_golongan').value = gol;
+        toggleGolongan(); // Panggil fungsi hide/show berdasarkan status
+
+        document.getElementById('k_jab_non_struk').value = k.jab_non_struk;
+        document.getElementById('k_risiko').value = k.risiko || "Tidak ada";
+        document.getElementById('k_radiasi').value = k.radiasi || "Tidak ada";
+        document.getElementById('k_emergensi').value = k.emergensi || "Non Emergency";
+        document.getElementById('k_pola_kerja').value = k.pola_kerja || "Non Rotasi";
+        document.getElementById('k_oncall').value = k.oncall || "Tidak";
+        document.getElementById('k_prestasi').value = k.prestasi;
+        document.getElementById('k_tim1').value = k.tim1;
+        document.getElementById('k_jab_tim1').value = k.jab_tim1;
+        document.getElementById('k_tim2').value = k.tim2;
+        document.getElementById('k_jab_tim2').value = k.jab_tim2;
+        document.getElementById('k_tim3').value = k.tim3;
+        document.getElementById('k_jab_tim3').value = k.jab_tim3;
+
+        document.getElementById('modalKaryawan').style.display = 'block';
+    }
+
+    async function simpanKaryawan() {
+        const btn = document.getElementById("btnSimpan");
+        const nikTarget = document.getElementById('k_nik').value;
+        const statusPegawai = document.getElementById('k_status').value;
+        
+        // Logika Pintar: Jika bukan PNS, otomatis setor 'Non-PNS' agar Excel PPh 21 tidak bingung
+        const golonganFinal = statusPegawai === 'PNS' ? document.getElementById('k_golongan').value : 'Non-PNS';
+        
+        const payload = {
+            nip: document.getElementById('k_nip').value,
+            nama: document.getElementById('k_nama').value,
+            rekening: document.getElementById('k_rekening').value,
+            golongan: golonganFinal,
+            
+            produktivitas: Number(document.getElementById('k_produktivitas').value) || 0,
+            disiplin: Number(document.getElementById('k_disiplin').value) || 0,
+            hukuman: Number(document.getElementById('k_hukuman').value) || 0,
+
+            pendidikan: document.getElementById('k_pendidikan').value,
+            jabatan: document.getElementById('k_jabatan').value,
+            unit: document.getElementById('k_unit').value,
+            tmt: document.getElementById('k_tmt').value,
+            status: statusPegawai,
+            jab_non_struk: document.getElementById('k_jab_non_struk').value,
+            risiko: document.getElementById('k_risiko').value,
+            radiasi: document.getElementById('k_radiasi').value,
+            emergensi: document.getElementById('k_emergensi').value,
+            pola_kerja: document.getElementById('k_pola_kerja').value,
+            oncall: document.getElementById('k_oncall').value,
+            prestasi: document.getElementById('k_prestasi').value,
+            tim1: document.getElementById('k_tim1').value,
+            jab_tim1: document.getElementById('k_jab_tim1').value,
+            tim2: document.getElementById('k_tim2').value,
+            jab_tim2: document.getElementById('k_jab_tim2').value,
+            tim3: document.getElementById('k_tim3').value,
+            jab_tim3: document.getElementById('k_jab_tim3').value
+        };
+
+        btn.innerText = "⏳ Sedang Menyimpan..."; btn.disabled = true;
+
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "update_karyawan", nik: nikTarget, payload: payload })
+            });
+            const res = await response.json();
+            alert("✅ " + res.message);
+            tutupModal();
+            loadData();
+        } catch(e) {
+            alert("❌ Gagal menyimpan data. Periksa koneksi internet Anda.");
+        } finally {
+            btn.innerText = "💾 Simpan Perubahan"; btn.disabled = false;
+        }
+    }
+
+    window.onload = loadData;
+</script>
+</body>
+</html>

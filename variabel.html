@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Master Variabel Penghitungan Jaspel</title>
+    
+    <script src="https://bossanova.uk/jspreadsheet/v4/jexcel.js"></script>
+    <link rel="stylesheet" href="https://bossanova.uk/jspreadsheet/v4/jexcel.css" type="text/css" />
+    <script src="https://jsuites.net/v4/jsuites.js"></script>
+    <link rel="stylesheet" href="https://jsuites.net/v4/jsuites.css" type="text/css" />
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; }
+        .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 98%; margin: auto; }
+        
+        .header-title { margin-top: 0; color: #6f42c1; display: flex; align-items: center; justify-content: space-between; }
+        .info-text { font-size: 13px; color: #666; margin-bottom: 15px; background: #e9ecef; padding: 10px; border-radius: 5px; border-left: 4px solid #6f42c1; }
+        
+        #spreadsheet-container { margin-bottom: 20px; width: 100%; border: 1px solid #ccc; background: #fdfdfd;}
+        
+        /* Custom Scrollbar */
+        .jexcel_content::-webkit-scrollbar { width: 12px; height: 12px; }
+        .jexcel_content::-webkit-scrollbar-track { background: #f1f1f1; }
+        .jexcel_content::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 6px; }
+
+        .btn { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .btn-submit { background: #6f42c1; color: white; width: 100%; font-size: 16px; padding: 15px; transition: 0.2s;}
+        .btn-submit:hover { background: #5a32a3; }
+        
+        /* Menghilangkan angka urutan baris/kolom bawaan Jexcel agar terlihat seperti form bersih */
+        .jexcel > thead > tr > td { background-color: #f4f4f4; font-weight: bold; color: #333; }
+    </style>
+    <script>
+    // Proteksi Halaman: Cek apakah user sudah login
+    if (!localStorage.getItem("userRole")) {
+        window.location.href = "login.html"; // Tendang balik ke login jika belum ada role
+    }
+</script>
+    <script src="config.js"></script>
+</head>
+<body>
+<script>renderNavbar();</script>
+<div class="card">
+    <div class="header-title">
+        <h2 style="margin:0;">⚙️ Master Data: Variabel & Skor Jaspel</h2>
+        <button class="btn" style="background:#17a2b8; color:white; padding:8px 15px;" onclick="loadData()">🔄 Muat Ulang Data</button>
+    </div>
+    
+    <div class="info-text">
+        💡 <b>Tampilan Super Dinamis:</b> Halaman ini langsung membaca bentuk asli dari Google Sheets. Baris pertama (abu-abu) adalah <b>Judul Kolom</b>. Jika Anda klik kanan pada tabel, Anda bisa menyisipkan kolom baru, menambah baris baru, atau menghapus data yang tidak diperlukan. Apa pun yang Anda ubah di sini akan langsung menimpa struktur di Google Sheets!
+    </div>
+
+    <div id="spreadsheet-container">
+        <p style="text-align: center; padding: 30px; color: #666;">Mengambil struktur tabel dari Server...</p>
+    </div>
+
+    <button class="btn btn-submit" id="btnSubmit" onclick="simpanData()">💾 SIMPAN PERUBAHAN KE MASTER DATABASE</button>
+</div>
+
+<script>
+    let tabelExcel = null;
+
+    async function loadData() {
+        const wadah = document.getElementById('spreadsheet-container');
+        
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "get_variabel" })
+            });
+            const res = await response.json();
+            
+            if (res.status === "success") {
+                renderTabelDinamis(res.data);
+            } else {
+                wadah.innerHTML = `<p style="color:red; text-align:center;">Gagal memuat: ${res.message}</p>`;
+            }
+        } catch(e) {
+            wadah.innerHTML = `<p style="color:red; text-align:center;">Error koneksi jaringan.</p>`;
+        }
+    }
+
+    function renderTabelDinamis(dataRaw) {
+        const wadah = document.getElementById('spreadsheet-container');
+        wadah.innerHTML = ""; // Bersihkan loading text
+
+        if(dataRaw.length === 0) {
+            // Jika sheet benar-benar kosong, buat format default minimal 2 kolom
+            dataRaw = [ ["Variabel Baru", "Skor"], ["", ""] ];
+        }
+
+        // Pisahkan Baris ke-1 (sebagai Judul Kolom/Header) dan sisa datanya
+        const headers = dataRaw[0];
+        const isiData = dataRaw.slice(1);
+
+        // Buat definisi kolom secara dinamis berdasarkan baris pertama
+        let kolomDinamis = headers.map(judul => {
+            return { title: judul || "Kolom Kosong", width: 130 };
+        });
+
+        // Inisialisasi Jspreadsheet
+        tabelExcel = jspreadsheet(wadah, {
+            data: isiData,
+            columns: kolomDinamis,
+            minDimensions: [kolomDinamis.length, 20], // Beri 20 baris kosong ke bawah
+            tableOverflow: true, 
+            tableWidth: "100%", 
+            tableHeight: "65vh",
+            allowInsertColumn: true, // Mengizinkan tambah kolom baru via Klik Kanan
+            allowManualInsertColumn: true,
+            allowDeleteColumn: true
+        });
+    }
+
+    async function simpanData() {
+        if (!tabelExcel) return;
+
+        if(!confirm("PERINGATAN: Menyimpan data ini akan menimpa seluruh struktur di sheet Master Variabel. Lanjutkan?")) return;
+
+        const btn = document.getElementById('btnSubmit');
+        btn.innerText = "⏳ Sedang Menyimpan Struktur Master..."; 
+        btn.disabled = true;
+
+        // 1. Ambil Judul Kolom (Headers) yang saat ini aktif
+        const headers = tabelExcel.getHeaders().split(',');
+        
+        // 2. Ambil Isi Data
+        const isiData = tabelExcel.getData();
+
+        // FILTER: Buang baris yang kosong total di bagian bawah agar sheet rapi
+        const dataBersih = isiData.filter(baris => baris.join('').trim() !== '');
+
+        // 3. Gabungkan Header dan Isi menjadi satu Array 2D utuh
+        const payloadUtuh = [headers, ...dataBersih];
+
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "update_variabel",
+                    payload: payloadUtuh
+                })
+            });
+            const res = await response.json();
+            alert("✅ " + res.message);
+        } catch(e) {
+            alert("❌ Gagal menyimpan. Cek koneksi internet Anda.");
+        } finally {
+            btn.innerText = `💾 SIMPAN PERUBAHAN KE MASTER DATABASE`; 
+            btn.disabled = false;
+        }
+    }
+
+    // Jalankan saat halaman dibuka
+    window.onload = loadData;
+</script>
+</body>
+</html>

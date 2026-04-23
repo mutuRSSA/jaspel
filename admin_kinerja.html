@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Input Massal Kinerja & Kedisiplinan</title>
+    
+    <script src="https://bossanova.uk/jspreadsheet/v4/jexcel.js"></script>
+    <link rel="stylesheet" href="https://bossanova.uk/jspreadsheet/v4/jexcel.css" type="text/css" />
+    <script src="https://jsuites.net/v4/jsuites.js"></script>
+    <link rel="stylesheet" href="https://jsuites.net/v4/jsuites.css" type="text/css" />
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 1000px; margin: auto; }
+        
+        .header-title { margin-top: 0; color: #004085; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 15px;}
+        .info-text { font-size: 13px; color: #555; margin-bottom: 15px; background: #e2e3e5; padding: 10px 15px; border-radius: 5px; border-left: 4px solid #383d41; }
+        
+        #spreadsheet-container { margin-bottom: 20px; width: 100%; border: 1px solid #ccc; background: #fdfdfd;}
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-submit { background: #28a745; color: white; width: 100%; font-size: 15px; padding: 15px; transition: 0.2s;}
+        .btn-submit:hover { background: #218838; }
+        .btn-refresh { background: #17a2b8; color: white; }
+
+        /* Custom style agar NIK dan Nama terlihat dikunci (Read-only) */
+        .jexcel > tbody > tr > td[data-x="0"], .jexcel > tbody > tr > td[data-x="1"] { background-color: #f8f9fa; color: #555; cursor: not-allowed; }
+    </style>
+    <script>
+    // Proteksi Halaman: Cek apakah user sudah login
+    if (!localStorage.getItem("userRole")) {
+        window.location.href = "login.html"; // Tendang balik ke login jika belum ada role
+    }
+</script>
+    <script src="config.js"></script>
+</head>
+<body>
+<script>renderNavbar();</script>
+<div class="card">
+    <div class="header-title">
+        <h2 style="margin:0;">⚡ Input Massal Kinerja Bulanan</h2>
+        <button class="btn btn-refresh" onclick="loadData()">🔄 Tarik Database Karyawan</button>
+    </div>
+    
+    <div class="info-text">
+        💡 <b>Tips Cepat:</b> Kolom NIK dan Nama <b>terkunci</b>. Anda dapat melakukan <i>Copy-Paste</i> langsung dari Microsoft Excel ke dalam kolom <b>Produktivitas</b>, <b>Disiplin</b>, dan <b>Hukuman</b> di bawah ini. Angka 1 = 100%, 0.8 = 80%.
+    </div>
+
+    <div id="spreadsheet-container">
+        <p style="text-align: center; padding: 30px; color: #666;">Mengambil data Karyawan dari Server...</p>
+    </div>
+
+    <button class="btn btn-submit" id="btnSubmit" onclick="simpanMassal()">💾 SIMPAN SEMUA NILAI KINERJA KE DATABASE</button>
+</div>
+
+<script>
+    let tabelExcel = null;
+
+    async function loadData() {
+        const wadah = document.getElementById('spreadsheet-container');
+        wadah.innerHTML = '<p style="text-align: center; padding: 30px; color: #666;">⏳ Sedang memuat ratusan data karyawan...</p>';
+        
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "get_karyawan" })
+            });
+            const res = await response.json();
+            
+            if (res.status === "success") {
+                renderTabelKinerja(res.data);
+            } else {
+                wadah.innerHTML = `<p style="color:red; text-align:center;">Gagal memuat.</p>`;
+            }
+        } catch(e) {
+            wadah.innerHTML = `<p style="color:red; text-align:center;">Error koneksi jaringan.</p>`;
+        }
+    }
+
+    function renderTabelKinerja(dataKaryawan) {
+        const wadah = document.getElementById('spreadsheet-container');
+        wadah.innerHTML = ""; 
+
+        // 1. Format data array of object menjadi Array 2D [ [NIK, Nama, Prod, Disiplin, Hukuman] ]
+        let data2D = dataKaryawan.map(k => [
+            k.nik, 
+            k.nama, 
+            k.produktivitas !== undefined ? k.produktivitas : 1, 
+            k.disiplin !== undefined ? k.disiplin : 1, 
+            k.hukuman !== undefined ? k.hukuman : 0
+        ]);
+
+        // 2. Inisialisasi Jspreadsheet
+        tabelExcel = jspreadsheet(wadah, {
+            data: data2D,
+            columns: [
+                { type: 'text', title: 'NIK', width: 140, readOnly: true },
+                { type: 'text', title: 'NAMA KARYAWAN', width: 300, readOnly: true },
+                { type: 'numeric', title: 'PRODUKTIVITAS (1=100%)', width: 150 },
+                { type: 'numeric', title: 'DISIPLIN (1=100%)', width: 150 },
+                { type: 'dropdown', title: 'SANKSI HUKUMAN', width: 150, source: [
+                    { id: 0, name: '0% (Aman)' }, 
+                    { id: 0.25, name: '25% (Ringan)' }, 
+                    { id: 0.50, name: '50% (Berat)' }
+                ]}
+            ],
+            search: true, // Menambahkan fitur pencarian bawaan
+            pagination: 25, // Agar browser tidak lag jika data > 300
+            tableOverflow: true, 
+            tableWidth: "100%", 
+            tableHeight: "60vh",
+            allowInsertColumn: false, 
+            allowInsertRow: false, 
+            allowDeleteRow: false
+        });
+    }
+
+    async function simpanMassal() {
+        if (!tabelExcel) return;
+
+        const btn = document.getElementById('btnSubmit');
+        btn.innerText = "⏳ Sedang Menyimpan Ratusan Data ke Google Sheets..."; 
+        btn.disabled = true;
+
+        // Ambil data yang ada di tabel
+        const isiData = tabelExcel.getData();
+        
+        // Format ulang menjadi Payload yang dipahami Backend
+        let payloadKinerja = [];
+        isiData.forEach(baris => {
+            payloadKinerja.push({
+                nik: baris[0],
+                prod: baris[2],
+                dis: baris[3],
+                huk: baris[4]
+            });
+        });
+
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "update_kinerja_bulk",
+                    payload: payloadKinerja
+                })
+            });
+            const res = await response.json();
+            alert("✅ " + res.message);
+        } catch(e) {
+            alert("❌ Gagal menyimpan. Cek koneksi internet Anda.");
+        } finally {
+            btn.innerText = `💾 SIMPAN SEMUA NILAI KINERJA KE DATABASE`; 
+            btn.disabled = false;
+        }
+    }
+
+    // Jalankan saat halaman dibuka
+    window.onload = loadData;
+</script>
+</body>
+</html>

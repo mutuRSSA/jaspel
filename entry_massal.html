@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Bulk Entry Pasien - Web Excel</title>
+    
+    <script src="https://bossanova.uk/jspreadsheet/v4/jexcel.js"></script>
+    <link rel="stylesheet" href="https://bossanova.uk/jspreadsheet/v4/jexcel.css" type="text/css" />
+    <script src="https://jsuites.net/v4/jsuites.js"></script>
+    <link rel="stylesheet" href="https://jsuites.net/v4/jsuites.css" type="text/css" />
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; }
+        .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 98%; margin: auto; }
+        
+        .top-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap:15px; background: #e9ecef; padding: 15px; border-radius: 8px;}
+        .form-group { display: flex; align-items: center; gap: 10px; }
+        select { padding: 8px 12px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; font-weight: bold; }
+        
+        .header-title { margin-top: 0; color: #004085; margin-bottom: 5px;}
+        #spreadsheet-container { margin-bottom: 20px; width: 100%; border: 1px solid #ccc;}
+        
+        .jexcel_content::-webkit-scrollbar { width: 12px; height: 12px; }
+        .jexcel_content::-webkit-scrollbar-track { background: #f1f1f1; }
+        .jexcel_content::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 6px; }
+
+        .btn { padding: 10px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 6px; transition: 0.2s;}
+        .btn-reset { background: #dc3545; color: white; }
+        .btn-draft { background: #ffc107; color: black; }
+        .btn-draft:hover { background: #e0a800; }
+        .btn-tarik { background: #17a2b8; color: white; }
+        .btn-pending { background: #6f42c1; color: white; } /* Tombol Baru */
+        .btn-final { background: #28a745; color: white; width: 100%; font-size: 16px; padding: 15px; justify-content: center;}
+        .btn-final:hover { background: #218838; }
+
+        .alert-info { background: #d1ecf1; color: #0c5460; padding: 12px 15px; border-radius: 5px; margin-bottom: 20px; font-size: 13px; border: 1px solid #bee5eb; line-height: 1.5; }
+    </style>
+     <script src="config.js"></script>
+</head>
+<body>
+    <script>
+    // Proteksi Halaman: Cek apakah user sudah login
+    if (!localStorage.getItem("userRole")) {
+        window.location.href = "login.html"; // Tendang balik ke login jika belum ada role
+    }
+</script>
+<script>renderNavbar();</script>
+<div class="card">
+    <h2 class="header-title">🚀 Workspace Entry Massal (Draf & Pending)</h2>
+    
+    <div class="alert-info">
+        💡 <b>Info Sinkronisasi:</b> Anda kini dapat memuat pasien yang berstatus <b>Pending</b> untuk diproses massal. Kolom status di tabel sudah dikunci menggunakan dropdown. Ubah status pasien Pending menjadi <b>Disetujui, VPK, atau Tidak Layak</b>, lalu klik Kirim Final.
+    </div>
+
+    <div class="top-panel">
+        <div class="form-group">
+            <label style="font-weight:bold;">Pilih Ruangan:</label>
+            <select id="sheetTujuan" onchange="ubahFormatTabel()">
+                <option value="DB_Rajal_Umum">Rajal Umum</option>
+                <option value="DB_Rajal_BPJS">Rajal BPJS</option>
+                <option value="DB_Ranap_Umum">Ranap Umum</option>
+                <option value="DB_Ranap_BPJS">Ranap BPJS</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-tarik" id="btnTarikDraft" onclick="tarikData('draft')">📥 Muat Draf</button>
+            <button class="btn btn-pending" id="btnTarikPending" onclick="tarikData('pending')">📥 Muat Pasien Pending</button>
+            <button class="btn btn-draft" id="btnDraft" onclick="kirimData(false)">💾 Simpan ke Draf</button>
+            <button class="btn btn-reset" onclick="bersihkanTabel()">🧹 Bersihkan Tabel</button>
+        </div>
+    </div>
+
+    <div id="spreadsheet-container"></div>
+
+    <button class="btn btn-final" id="btnSubmit" onclick="kirimData(true)">🚀 KIRIM FINAL KE DATABASE (UPDATE STATUS & VALIDASI)</button>
+</div>
+
+<script>
+    let tabelExcel = null;
+
+    // --- DAFTAR DROPDOWN ---
+    const listStatus = ["Draft", "Pending", "Disetujui", "VPK", "Tidak Layak"]; // Dropdown Status Baru
+    const listSpesialis = ["", "dr. Weny Inrianto, M.Sc, Sp.A", "dr Arif Setyo Wibowo, Sp.An.TI", "dr. Puspita Sari, Sp. OG", "dr. Lilik Eko Pranantyo, Sp PD", "dr Alfian Fahmy, Sp.B", "dr. Dewi Hayu Kirana, Sp.N"];
+    const listAnestesi = ["", "dr Arif Setyo Wibowo, Sp.An.TI"];
+    const listDokter = ["", "dr. Weny Inrianto, M.Sc, Sp.A", "dr Arif Setyo Wibowo, Sp.An.TI", "dr. Puspita Sari, Sp. OG", "dr. Lilik Eko Pranantyo, Sp PD", "dr Alfian Fahmy, Sp.B", "dr. Dewi Hayu Kirana, Sp.N", "dr. Tri Widjaja", "dr. Irawan Jati Asmara", "dr. Muhammad Mirdza", "dr. Dyah Chandra Suwastiko Putri", "dr. Husni Muarif", "dr. Hendrisa Heppy Natalina", "dr. Kriswahyu Yudo Wirawan", "dr. Nurul Khafidz Subekti", "dr. Gerda Bina Larasati"];
+    const listYaTidak = ["", "Ya", "Tidak"];
+    const listBayarUmum = ["", "Umum", "Jasa Raharja"];
+    const listBayarBPJS = ["", "BPJS", "BPJS-TK", "Jamkesda"];
+    const listAsal = ["", "Poli", "UGD"];
+    const listJenisKasus = ["", "Operasi", "Non Operasi"];
+
+    // Kolom Status diubah menjadi Dropdown
+    const konfigurasiHeader = {
+        "DB_Rajal_Umum": [
+            { title: 'NO [Otomatis]', width: 100, readOnly: true }, { title: 'TANGGAL', width: 100 }, { title: 'NO. TRANSAKSI', width: 120 }, { title: 'NOMOR RM', width: 100 }, { title: 'NAMA PASIEN', width: 180 }, { title: 'ALAMAT', width: 150 }, { title: 'DOKTER', width: 150, type: 'dropdown', source: listDokter }, { title: 'JENIS KASUS', width: 100, type: 'dropdown', source: listJenisKasus }, { title: 'KONSUL 1', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'KONSUL 2', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'USG', width: 80, type: 'dropdown', source: listYaTidak }, { title: 'PEMBAYARAN', width: 100, type: 'dropdown', source: listBayarUmum }, { title: 'STATUS', width: 110, type: 'dropdown', source: listStatus }, { title: 'PENDAFTARAN (SARANA)', width: 130 }, { title: 'PENDAFTARAN (PELAYANAN)', width: 130 }, { title: 'TINDAKAN (SARANA)', width: 130 }, { title: 'TINDAKAN (PELAYANAN)', width: 130 }, { title: 'LABORATORIUM (SARANA)', width: 130 }, { title: 'LABORATORIUM (PELAYANAN)', width: 130 }, { title: 'RADIOLOGI (SARANA)', width: 130 }, { title: 'RADIOLOGI (PELAYANAN)', width: 130 }, { title: 'FARMASI (SARANA)', width: 130 }, { title: 'FARMASI (PELAYANAN)', width: 130 }
+        ],
+        "DB_Rajal_BPJS": [
+            { title: 'NO [Otomatis]', width: 100, readOnly: true }, { title: 'Tgl Periksa', width: 100 }, { title: 'NO RM', width: 100 }, { title: 'Nama Pasien', width: 180 }, { title: 'Jenis Pasien', width: 100 }, { title: 'Dokter', width: 150, type: 'dropdown', source: listDokter }, { title: 'Konsul 1', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'Konsul 2', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'USG', width: 80, type: 'dropdown', source: listYaTidak }, { title: 'Laboratorium', width: 100, type: 'dropdown', source: listYaTidak }, { title: 'Radiologi', width: 100, type: 'dropdown', source: listYaTidak }, { title: 'No Klaim', width: 130 }, { title: 'Pembayaran', width: 100, type: 'dropdown', source: listBayarBPJS }, { title: 'Status Klaim', width: 110, type: 'dropdown', source: listStatus }, { title: 'Total Klaim', width: 120 }
+        ],
+        "DB_Ranap_Umum": [
+            { title: 'NO [Otomatis]', width: 100, readOnly: true }, { title: 'TANGGAL', width: 100 }, { title: 'NO TRANSAKSI', width: 120 }, { title: 'NOMOR RM', width: 100 }, { title: 'NAMA PASIEN', width: 180 }, { title: 'ASAL', width: 80, type: 'dropdown', source: listAsal }, { title: 'PEMBAYARAN', width: 100, type: 'dropdown', source: listBayarUmum }, { title: 'DOKTER', width: 150, type: 'dropdown', source: listDokter }, { title: 'ANESTESI', width: 150, type: 'dropdown', source: listAnestesi }, { title: 'JENIS KASUS', width: 100, type: 'dropdown', source: listJenisKasus }, { title: 'KONSUL 1', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'KONSUL 2', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'RABER 1', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'RABER 2', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'USG', width: 80, type: 'dropdown', source: listYaTidak }, { title: 'JML VISITE DR JAGA', width: 120 }, { title: 'STATUS', width: 110, type: 'dropdown', source: listStatus }, { title: 'PENDAFTARAN (SARANA)', width: 130 }, { title: 'PENDAFTARAN (PELAYANAN)', width: 130 }, { title: 'TINDAKAN IGD (SARANA)', width: 130 }, { title: 'TINDAKAN IGD (PELAYANAN)', width: 130 }, { title: 'TINDAKAN (SARANA)', width: 130 }, { title: 'TINDAKAN (PELAYANAN)', width: 130 }, { title: 'LABORATORIUM (SARANA)', width: 130 }, { title: 'LABORATORIUM (PELAYANAN)', width: 130 }, { title: 'RADIOLOGI (SARANA)', width: 130 }, { title: 'RADIOLOGI (PELAYANAN)', width: 130 }, { title: 'FARMASI TOTAL', width: 120 }
+        ],
+        "DB_Ranap_BPJS": [
+            { title: 'NO [Otomatis]', width: 100, readOnly: true }, { title: 'Tgl Masuk', width: 100 }, { title: 'Tgl Pulang', width: 100 }, { title: 'No RM', width: 100 }, { title: 'Nama Pasien', width: 180 }, { title: 'Jenis Kasus', width: 100, type: 'dropdown', source: listJenisKasus }, { title: 'Asal Pasien', width: 100, type: 'dropdown', source: listAsal }, { title: 'Dokter', width: 150, type: 'dropdown', source: listDokter }, { title: 'Anestesi', width: 150, type: 'dropdown', source: listAnestesi }, { title: 'Konsul 1', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'Konsul 2', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'raber 1', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'Raber 2', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'Laboratorium', width: 100, type: 'dropdown', source: listYaTidak }, { title: 'Radiologi', width: 100, type: 'dropdown', source: listYaTidak }, { title: 'USG', width: 80, type: 'dropdown', source: listYaTidak }, { title: 'Visite dr Jaga', width: 120 }, { title: 'Pembayaran', width: 100, type: 'dropdown', source: listBayarBPJS }, { title: 'Status Klaim', width: 110, type: 'dropdown', source: listStatus }, { title: 'Total Klaim', width: 120 }
+        ]
+    };
+
+    function inisialisasiTabel(pilihanSheet, dataAwal = []) {
+        const wadah = document.getElementById('spreadsheet-container');
+        wadah.innerHTML = ""; 
+        const kolomDipilih = konfigurasiHeader[pilihanSheet];
+
+        tabelExcel = jspreadsheet(wadah, {
+            data: dataAwal, 
+            columns: kolomDipilih,
+            minDimensions: [kolomDipilih.length, 50],
+            defaultColWidth: 100,
+            tableOverflow: true, tableWidth: "100%", tableHeight: "65vh",
+            contextMenu: function() { return false; }
+        });
+    }
+
+    function ubahFormatTabel() { inisialisasiTabel(document.getElementById('sheetTujuan').value); }
+    function bersihkanTabel() { if(confirm("Yakin ingin mengosongkan semua isian di tabel ini?")) ubahFormatTabel(); }
+
+    // FUNGSI GABUNGAN TARIK DATA (DRAFT & PENDING)
+    async function tarikData(mode) {
+        const targetSheet = document.getElementById('sheetTujuan').value;
+        const btn = mode === 'draft' ? document.getElementById('btnTarikDraft') : document.getElementById('btnTarikPending');
+        const originalText = btn.innerText;
+        btn.innerText = "⏳ Sedang Memuat..."; btn.disabled = true;
+
+        const actionName = mode === 'draft' ? "get_draft" : "get_pending";
+
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: actionName, sheet_db: targetSheet })
+            });
+            const res = await response.json();
+            
+            if (res.data.length > 0) {
+                const jumlahKolomHeader = konfigurasiHeader[targetSheet].length;
+                const dataPas = res.data.map(baris => baris.slice(0, jumlahKolomHeader));
+                
+                inisialisasiTabel(targetSheet, dataPas);
+                alert(`✅ Berhasil memuat ${res.data.length} pasien (${mode.toUpperCase()})!`);
+            } else {
+                alert(`Tidak ada data ${mode.toUpperCase()} untuk ruangan ini.`);
+            }
+        } catch(e) { alert(`❌ Gagal memuat data.`); } 
+        finally { btn.innerText = originalText; btn.disabled = false; }
+    }
+
+    async function kirimData(isFinalMode) {
+        if (!tabelExcel) return;
+
+        const dataMentah = tabelExcel.getData();
+        const dataBersih = dataMentah.filter(baris => baris.join('').trim() !== '');
+
+        if (dataBersih.length === 0) {
+            alert("Tabel masih kosong! Silakan paste atau ketik data terlebih dahulu."); return;
+        }
+
+        const targetSheet = document.getElementById('sheetTujuan').value;
+        const pesan = isFinalMode ? 
+            `Siap mengirim FINAL ${dataBersih.length} data pasien?\n\nJika Status di tabel Anda isi 'VPK'/'Tidak Layak', sistem akan mematuhinya. Jika dibiarkan 'Pending', sistem akan mengubahnya menjadi 'Disetujui' jika nilai klaimnya sah.` : 
+            `Simpan ${dataBersih.length} data pasien ke Draf di ${targetSheet}?`;
+
+        if (!confirm(pesan)) return;
+
+        const btnDraft = document.getElementById('btnDraft');
+        const btnSubmit = document.getElementById('btnSubmit');
+        
+        if (isFinalMode) { btnSubmit.innerText = "⏳ Sedang Memproses Final..."; } 
+        else { btnDraft.innerText = "⏳ Menyimpan Draf..."; }
+        
+        btnDraft.disabled = true; btnSubmit.disabled = true;
+
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "simpan_bulk",
+                    sheet_db: targetSheet,
+                    data_excel: dataBersih,
+                    is_final: isFinalMode
+                })
+            });
+            const res = await response.json();
+            alert("✅ " + res.message);
+            ubahFormatTabel(); 
+        } catch(e) { alert("❌ Gagal mengirim data. Cek koneksi internet."); } 
+        finally {
+            btnDraft.innerText = "💾 Simpan ke Draf"; btnSubmit.innerText = "🚀 KIRIM FINAL KE DATABASE (UPDATE STATUS & VALIDASI)";
+            btnDraft.disabled = false; btnSubmit.disabled = false;
+        }
+    }
+
+    window.onload = function() { ubahFormatTabel(); };
+</script>
+</body>
+</html>

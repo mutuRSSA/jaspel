@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Jejak Audit Sistem</title>
+    <script src="config.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 20px; margin: 0; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 100%; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;}
+        h2 { margin: 0; color: #dc3545; display: flex; align-items: center; gap: 10px;}
+        
+        table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
+        th { background: #343a40; color: white; position: sticky; top: 0; }
+        tr:hover { background: #f8f9fa; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+        .bg-edit { background: #fff3cd; color: #856404; }
+        .bg-vpk { background: #f8d7da; color: #721c24; }
+        .bg-massal { background: #d4edda; color: #155724; }
+        .bg-default { background: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+    <script>
+    // Proteksi Halaman: Cek apakah user sudah login
+    if (!localStorage.getItem("userRole")) {
+        window.location.href = "login.html"; // Tendang balik ke login jika belum ada role
+    }
+</script>
+<script>renderNavbar();</script>
+
+<div class="card">
+    <div class="header">
+        <h2>🛡️ Jejak Audit & Keamanan (Log Aktivitas)</h2>
+        <button onclick="muatLog()" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">🔄 Segarkan Log</button>
+    </div>
+    <p style="color: #666; font-size: 13px;">Semua tindakan modifikasi nominal, perubahan status klaim, dan duplikasi VPK dicatat secara permanen oleh sistem di halaman ini. Bukti riwayat tidak dapat dihapus oleh Admin.</p>
+    
+    <div style="max-height: 600px; overflow-y: auto; border: 1px solid #ccc; border-radius: 8px;">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 150px;">Waktu Sistem</th>
+                    <th style="width: 150px;">Kategori Aksi</th>
+                    <th>Detail Perubahan (Audit Trail)</th>
+                    <th style="width: 180px;">User / Operator</th>
+                </tr>
+            </thead>
+            <tbody id="bodyLog">
+                <tr><td colspan="4" style="text-align:center; padding: 20px;">Memuat data keamanan...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function muatLog() {
+        document.getElementById('bodyLog').innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Mengambil data dari server...</td></tr>';
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "get_log" })
+            });
+            const res = await response.json();
+            
+            let html = "";
+            if (res.data.length === 0) {
+                html = '<tr><td colspan="4" style="text-align:center;">Belum ada aktivitas yang dicatat.</td></tr>';
+            } else {
+                res.data.forEach(row => {
+                    let dateStr = new Date(row[0]).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+                    let aksi = row[1];
+                    let badgeClass = "bg-default";
+                    
+                    if (aksi.includes("EDIT")) badgeClass = "bg-edit";
+                    else if (aksi.includes("VPK")) badgeClass = "bg-vpk";
+                    else if (aksi.includes("MASSAL") || aksi.includes("BAYAR")) badgeClass = "bg-massal";
+
+                    html += `<tr>
+                        <td>${dateStr}</td>
+                        <td><span class="badge ${badgeClass}">${aksi}</span></td>
+                        <td style="font-family: monospace; font-size: 12px; color: #333;">${row[2]}</td>
+                        <td><small>👤 ${row[3]}</small></td>
+                    </tr>`;
+                });
+            }
+            document.getElementById('bodyLog').innerHTML = html;
+        } catch (e) {
+            document.getElementById('bodyLog').innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Gagal memuat log audit.</td></tr>';
+        }
+    }
+    window.onload = muatLog;
+</script>
+</body>
+</html>

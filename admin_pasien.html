@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Admin Terpadu</title>
+    <script>
+    // Proteksi Halaman: Cek apakah user sudah login
+    if (!localStorage.getItem("userRole")) {
+        window.location.href = "login.html"; // Tendang balik ke login jika belum ada role
+    }
+</script>
+    <script src="config.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; font-size: 13px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 100%; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .controls-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .controls-group { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        input[type="text"], input[type="number"], select { padding: 8px; border: 1px solid #ccc; border-radius: 5px; outline: none; box-sizing: border-box;}
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
+        th { background: #007bff; color: white; cursor: pointer; user-select: none; }
+        th:hover { background: #0056b3; }
+        .btn { padding: 6px 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px; margin-right: 4px; margin-bottom: 4px; }
+        .btn-refresh { background: #28a745; color: white; font-size: 13px;}
+        .btn-jaspel { background: #ffc107; color: black; }
+        .btn-medis { background: #17a2b8; color: white; }
+        
+        /* Modal Style */
+        .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; }
+        .modal-content { background:white; width: 450px; margin: 40px auto; padding: 25px; border-radius:8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+
+        /* Bulk Action Bar Style */
+        #bulkActionContainer { display: none; background: #cce5ff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #b8daff; align-items: center; justify-content: space-between; animation: fadeIn 0.3s ease-in-out;}
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        input[type="checkbox"] { transform: scale(1.3); cursor: pointer; }
+
+        .input-locked { background-color: #e9ecef; border: 1px solid #ced4da; color: #495057; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+<script>renderNavbar();</script>
+
+<div class="card">
+    <div class="header">
+        <h2 style="margin:0;">📂 Database Rekam Medis & Jaspel</h2>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn" style="background:#6f42c1; color:white; padding:8px 15px; font-size:13px;" onclick="window.location.href='entry_massal.html'">
+                📥 Menuju Entry Massal
+            </button>
+            <button class="btn btn-refresh" style="padding:8px 15px;" onclick="loadData()">
+                🔄 Segarkan Data
+            </button>
+        </div>
+    </div>
+
+    <div id="bulkActionContainer">
+        <div style="font-size: 14px; color: #004085;">
+            <span style="font-size: 18px;">☑️</span> <strong id="selectedCountText">0</strong> <b>Pasien dipilih</b>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span style="font-weight: bold; color: #004085;">Ubah Jasa Menjadi:</span>
+            <select id="bulkBulan" style="border-color:#b8daff;">
+                <option value="Januari">Januari</option><option value="Februari">Februari</option><option value="Maret">Maret</option>
+                <option value="April">April</option><option value="Mei">Mei</option><option value="Juni">Juni</option>
+                <option value="Juli">Juli</option><option value="Agustus">Agustus</option><option value="September">September</option>
+                <option value="Oktober">Oktober</option><option value="November">November</option><option value="Desember">Desember</option>
+            </select>
+            <input type="number" id="bulkTahun" value="2026" style="width: 80px; border-color:#b8daff;">
+            <button class="btn" style="background:#004085; color:white; font-size:13px; padding: 8px 15px; margin:0;" id="btnBulkSubmit" onclick="prosesBulkJasa()">✅ Tandai Terbayarkan</button>
+        </div>
+    </div>
+
+    <div class="controls-container">
+        <div class="controls-group">
+            <select id="limitData" onchange="resetPaginationAndRender()">
+                <option value="10">10 Baris</option><option value="50">50 Baris</option><option value="100">100 Baris</option><option value="All">Semua Data</option>
+            </select>
+            <label style="font-weight:bold; color:#28a745; display:flex; align-items:center; gap:8px; cursor:pointer; background:#e8f5e9; padding:5px 12px; border-radius:20px; border:1px solid #c8e6c9;">
+                <input type="checkbox" id="hidePaid" onchange="resetPaginationAndRender()" checked>
+                Sembunyikan Pasien Sudah Bayar
+            </label>
+        </div>
+        <div class="controls-group">
+            <select id="filterSumber" onchange="resetPaginationAndRender()">
+                <option value="">Semua Sumber</option><option value="DB_Rajal_Umum">Rajal Umum</option><option value="DB_Rajal_BPJS">Rajal BPJS</option>
+                <option value="DB_Ranap_Umum">Ranap Umum</option><option value="DB_Ranap_BPJS">Ranap BPJS</option>
+            </select>
+            <select id="filterKlaim" onchange="resetPaginationAndRender()">
+                <option value="">Semua Klaim</option>
+                <option value="Disetujui">Disetujui</option>
+                <option value="Pending">Pending</option>
+                <option value="VPK">VPK</option>
+                <option value="Tidak Layak">Tidak Layak</option>
+                <option value="Draft">Draft</option>
+            </select>
+            <select id="filterJasa" onchange="resetPaginationAndRender()">
+                <option value="">Semua Jasa</option><option value="Belum dibayarkan">Belum dibayarkan</option><option value="Terbayarkan">Terbayarkan</option>
+            </select>
+            <input type="text" id="search" placeholder="Cari Nama / Kode..." onkeyup="debounceSearch()" style="width: 180px;">
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 30px; text-align: center;"><input type="checkbox" id="checkAll" onchange="toggleSelectAll()"></th>
+                <th onclick="handleSort('kode_no')" style="width: 80px;">Kode</th>
+                <th onclick="handleSort('nama')">Pasien</th>
+                <th>Sumber & Bayar</th>
+                <th>Klinis (Medis)</th>
+                <th onclick="handleSort('total_awal')" style="width: 180px;">Status & Keuangan</th>
+                <th style="width: 140px;">Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="bodyTabel">
+            <tr><td colspan="7" style="text-align:center; padding: 20px;">Memuat data...</td></tr>
+        </tbody>
+    </table>
+    
+    <div style="display:flex; justify-content:space-between; margin-top:15px; align-items:center;">
+        <span id="infoHalaman"></span>
+        <div>
+            <button class="btn" style="background:#e9ecef; color:#333; font-size:13px;" id="btnPrev" onclick="changePage(-1)">◀ Prev</button>
+            <span id="pageIndicator" style="font-weight:bold; margin:0 10px; font-size:14px;">1</span>
+            <button class="btn" style="background:#e9ecef; color:#333; font-size:13px;" id="btnNext" onclick="changePage(1)">Next ▶</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalJaspel" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">💰 Update Pencairan Jaspel</h3>
+        <p id="infoPasienJaspel" style="color:#007bff; font-weight:bold;"></p>
+        <div style="margin-bottom:10px;">
+            <label style="font-weight:bold; font-size:12px;">Status Klaim:</label>
+            <select id="editKlaim" style="width:100%; padding:8px;" onchange="deteksiStatusVPK()">
+                <option value="Pending">Pending</option>
+                <option value="Disetujui">Disetujui</option>
+                <option value="VPK">VPK</option>
+                <option value="Tidak Layak">Tidak Layak</option>
+                <option value="Draft">Draft</option>
+            </select>
+        </div>
+        <div style="margin-bottom:10px;">
+            <label style="font-weight:bold; font-size:12px;">Nominal Cair (Rp):</label>
+            <input type="number" id="editNominal" style="width:100%;">
+            <small id="pesanKunciNominal" style="display:none; color:#dc3545; font-weight:bold; margin-top:3px;">🔒 Pasien UMUM otomatis 'Disetujui'.</small>
+        </div>
+        <div style="margin-bottom:10px;"><label style="font-weight:bold; font-size:12px;">Status Jasa:</label><select id="editJasa" style="width:100%; padding:8px;"><option value="Belum dibayarkan">Belum dibayarkan</option><option value="Terbayarkan">Terbayarkan</option></select></div>
+        <div style="margin-bottom:15px;"><label style="font-weight:bold; font-size:12px;">Bulan Jaspel:</label><select id="editBulan" style="width:100%; padding:8px;"><option value="-">-</option><option value="Januari">Januari</option><option value="Februari">Februari</option><option value="Maret">Maret</option><option value="April">April</option><option value="Mei">Mei</option><option value="Juni">Juni</option><option value="Juli">Juli</option><option value="Agustus">Agustus</option><option value="September">September</option><option value="Oktober">Oktober</option><option value="November">November</option><option value="Desember">Desember</option></select></div>
+        
+        <button class="btn btn-refresh" style="width:100%; padding:10px;" onclick="simpanJaspel()">💾 Simpan Jaspel</button>
+        <button id="btnKoreksiVPK" class="btn" style="width:100%; padding:10px; margin-top:8px; background:#17a2b8; color:white; display:none;" onclick="prosesKoreksiVPK()">🔄 Simpan sebagai Koreksi VPK (Baris Baru)</button>
+        
+        <button class="btn" style="width:100%; padding:10px; margin-top:8px; background:#ddd; color:black;" onclick="tutupModal('modalJaspel')">Batal</button>
+    </div>
+</div>
+
+<div id="modalMedis" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">📝 Edit Rincian Medis</h3>
+        <p id="infoPasienMedis" style="color:#17a2b8; font-weight:bold;"></p>
+        <div id="wadahFormMedis"></div>
+        <button class="btn btn-medis" style="width:100%; padding:10px; margin-top:15px;" onclick="simpanMedis()">💾 Simpan Data Medis</button>
+        <button class="btn" style="width:100%; padding:10px; margin-top:8px; background:#ddd; color:black;" onclick="tutupModal('modalMedis')">Batal</button>
+    </div>
+</div>
+
+<script>
+    const listSpesialis = ["", "dr. Weny Inrianto, M.Sc, Sp.A", "dr Arif Setyo Wibowo, Sp.An.TI", "dr. Puspita Sari, Sp. OG", "dr. Lilik Eko Pranantyo, Sp PD", "dr Alfian Fahmy, Sp.B", "dr. Dewi Hayu Kirana, Sp.N"];
+    const listAnestesi = ["", "dr Arif Setyo Wibowo, Sp.An.TI"];
+    const listDokter = ["", "dr. Weny Inrianto, M.Sc, Sp.A", "dr Arif Setyo Wibowo, Sp.An.TI", "dr. Puspita Sari, Sp. OG", "dr. Lilik Eko Pranantyo, Sp PD", "dr Alfian Fahmy, Sp.B", "dr. Dewi Hayu Kirana, Sp.N", "dr. Tri Widjaja", "dr. Irawan Jati Asmara", "dr. Muhammad Mirdza", "dr. Dyah Chandra Suwastiko Putri", "dr. Husni Muarif", "dr. Hendrisa Heppy Natalina", "dr. Kriswahyu Yudo Wirawan", "dr. Nurul Khafidz Subekti", "dr. Gerda Bina Larasati"];
+    const listYaTidak = ["", "Ya", "Tidak"];
+    const listBayarUmum = ["", "Umum", "Jasa Raharja"];
+    const listBayarBPJS = ["", "BPJS", "BPJS-TK", "Jamkesda"];
+    const listAsal = ["", "Poli", "UGD"];
+    const listJenisKasus = ["", "Operasi", "Non Operasi"];
+
+    function buildOptions(arrayPilihan, nilaiTerpilih) { return arrayPilihan.map(item => `<option value="${item}" ${item === nilaiTerpilih ? 'selected' : ''}>${item === "" ? "- Pilih -" : item}</option>`).join(''); }
+
+    let dataPasienOriginal = [], dataFiltered = [];
+    let currentPage = 1, sortColumn = "", sortAscending = true, selectedKode = "", selectedSheet = "";
+
+    async function loadData() {
+        document.getElementById('bodyTabel').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Mengambil data dari Google Sheets...</td></tr>';
+        try {
+            const response = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "get_pasien" }) });
+            const res = await response.json();
+            dataPasienOriginal = res.data;
+            resetPaginationAndRender(); 
+        } catch (e) { document.getElementById('bodyTabel').innerHTML = '<tr><td colspan="7" style="color:red; text-align:center;">Gagal mengambil data.</td></tr>'; }
+    }
+
+    let timerPencarian;
+    function debounceSearch() {
+        clearTimeout(timerPencarian);
+        timerPencarian = setTimeout(resetPaginationAndRender, 500); 
+    }
+
+    function applyFilterAndSort() {
+        const txt = document.getElementById('search').value.toLowerCase();
+        const fSumber = document.getElementById('filterSumber').value;
+        const fKlaim = document.getElementById('filterKlaim').value;
+        const fJasa = document.getElementById('filterJasa').value;
+        const hidePaid = document.getElementById('hidePaid').checked;
+
+        dataFiltered = dataPasienOriginal.filter(p => {
+            const mT = String(p.nama||"").toLowerCase().includes(txt) || String(p.kode_no||"").toLowerCase().includes(txt);
+            const mS = fSumber === "" || p.sheet_asal === fSumber;
+            const mK = fKlaim === "" || p.status_klaim === fKlaim;
+            const mJ = fJasa === "" || p.status_jasa === fJasa;
+            
+            const mH = hidePaid ? p.status_jasa !== "Terbayarkan" : true;
+            
+            return mT && mS && mK && mJ && mH;
+        });
+
+        if (sortColumn !== "") {
+            dataFiltered.sort((a, b) => {
+                let vA = String(a[sortColumn] || "").toLowerCase();
+                let vB = String(b[sortColumn] || "").toLowerCase();
+                if (vA < vB) return sortAscending ? -1 : 1;
+                if (vA > vB) return sortAscending ? 1 : -1; return 0;
+            });
+        }
+    }
+
+    function resetPaginationAndRender() { 
+        currentPage = 1; 
+        document.getElementById('checkAll').checked = false; 
+        updateBulkUI(); 
+        applyFilterAndSort(); 
+        renderTableData(); 
+    }
+    
+    function changePage(d) { 
+        currentPage += d; 
+        document.getElementById('checkAll').checked = false; 
+        updateBulkUI(); 
+        renderTableData(); 
+    }
+    
+    function handleSort(col) { sortColumn = col; sortAscending = !sortAscending; resetPaginationAndRender(); }
+
+    function renderTableData() {
+        const body = document.getElementById('bodyTabel');
+        const limitVal = document.getElementById('limitData').value;
+        const rPerPage = limitVal === "All" ? dataFiltered.length : parseInt(limitVal);
+        const tPages = Math.ceil(dataFiltered.length / rPerPage) || 1;
+        if (currentPage > tPages) currentPage = tPages;
+        const start = (currentPage - 1) * rPerPage;
+        const disp = dataFiltered.slice(start, start + rPerPage);
+
+        let html = "";
+        if (disp.length === 0) { html = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Tidak ada data.</td></tr>'; } 
+        else {
+            disp.forEach(p => {
+                let strAwal = String(p.total_awal || "0").replace(/[^0-9.-]+/g, ""); 
+                let numAwal = Number(strAwal) || 0;
+                
+                let d1 = p.tanggal_awal ? new Date(p.tanggal_awal).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'}) : "";
+                let d2 = p.tanggal_akhir ? new Date(p.tanggal_akhir).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'}) : "";
+                
+                let labelTanggal = p.sheet_asal.includes("Ranap") ? "Pulang" : "Pelayanan";
+                let teksTanggal = (p.sheet_asal === "DB_Ranap_BPJS" && d1 && d2) ? `${d1} - ${d2}` : d1;
+
+                let dr = (p.data_medis && p.data_medis['DOKTER']) ? p.data_medis['DOKTER'] : '-';
+                let cases = (p.data_medis && p.data_medis['JENIS KASUS']) ? p.data_medis['JENIS KASUS'] : '-';
+                let pay = (p.data_medis && p.data_medis['PEMBAYARAN']) ? p.data_medis['PEMBAYARAN'] : '-';
+
+                let sKlaim = (p.status_klaim || "Pending").toLowerCase();
+                let clrK, txtK;
+                if (sKlaim === 'disetujui') { clrK = '#d4edda'; txtK = '#155724'; }
+                else if (sKlaim === 'vpk') { clrK = '#d1ecf1'; txtK = '#0c5460'; } 
+                else if (sKlaim === 'tidak layak') { clrK = '#f8d7da'; txtK = '#721c24'; } 
+                else if (sKlaim === 'draft') { clrK = '#e2e3e5'; txtK = '#383d41'; } 
+                else { clrK = '#fff3cd'; txtK = '#856404'; } 
+
+                let clrJ = p.status_jasa === 'Terbayarkan' ? '#cce5ff' : '#e2e3e5';
+                let txtJ = p.status_jasa === 'Terbayarkan' ? '#004085' : '#383d41';
+
+                let warnaUang = numAwal < 0 ? "#dc3545" : "#333"; 
+
+                let checkbox = p.status_jasa === 'Terbayarkan' ? `<input type="checkbox" disabled checked style="opacity:0.5;">` : `<input type="checkbox" class="check-item" value="${p.kode_no}" data-sheet="${p.sheet_asal}" onchange="updateBulkUI()">`;
+
+                html += `<tr>
+                    <td style="text-align: center;">${checkbox}</td>
+                    <td style="font-weight:bold;">${p.kode_no}</td>
+                    <td>${p.nama}<br><small style="color:#6c757d;">📅 ${labelTanggal}: ${teksTanggal}</small></td>
+                    <td><span style="font-weight:bold; color:#0056b3;">${p.sheet_asal.replace('DB_','')}</span><br><small style="color:#666;">📝 ${pay}</small></td>
+                    <td><b>Dr:</b> ${dr} <small style="color:#666;">(${cases})</small></td>
+                    <td>
+                        <div style="margin-bottom:5px;">
+                            <span style="background:${clrK}; color:${txtK}; padding:3px 6px; border-radius:3px; font-size:10px; font-weight:bold;">${p.status_klaim}</span> 
+                            <span style="font-weight:bold; color:${warnaUang};">Rp ${numAwal.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div><span style="background:${clrJ}; color:${txtJ}; padding:3px 6px; border-radius:3px; font-size:10px;">${p.status_jasa}</span> <small style="color:#666; font-weight:bold;">${p.bulan_jaspel!=="-"?p.bulan_jaspel:""}</small></div>
+                    </td>
+                    <td>
+                        <button class="btn btn-medis" onclick="bukaModalMedis('${p.kode_no}')">📝 Medis</button>
+                        <button class="btn btn-jaspel" onclick="bukaModalJaspel('${p.kode_no}', '${numAwal}')">💰 Jaspel</button>
+                    </td>
+                </tr>`;
+            });
+        }
+        body.innerHTML = html;
+        document.getElementById('infoHalaman').innerText = `Menampilkan ${disp.length>0?start+1:0} - ${Math.min(start+rPerPage, dataFiltered.length)} dari ${dataFiltered.length} data`;
+        document.getElementById('pageIndicator').innerText = currentPage;
+        document.getElementById('btnPrev').disabled = (currentPage === 1);
+        document.getElementById('btnNext').disabled = (currentPage === tPages || tPages === 0);
+    }
+
+    function toggleSelectAll() {
+        const isChecked = document.getElementById('checkAll').checked;
+        document.querySelectorAll('.check-item:not([disabled])').forEach(cb => cb.checked = isChecked);
+        updateBulkUI();
+    }
+
+    function updateBulkUI() {
+        const checkedBoxes = document.querySelectorAll('.check-item:checked:not([disabled])');
+        document.getElementById('bulkActionContainer').style.display = checkedBoxes.length > 0 ? 'flex' : 'none';
+        document.getElementById('selectedCountText').innerText = checkedBoxes.length;
+    }
+
+    async function prosesBulkJasa() {
+        const checkedBoxes = document.querySelectorAll('.check-item:checked:not([disabled])');
+        if(checkedBoxes.length === 0) return;
+        const bulanJaspel = `${document.getElementById('bulkBulan').value} ${document.getElementById('bulkTahun').value}`;
+        if(!confirm(`Tandai ${checkedBoxes.length} pasien menjadi 'Terbayarkan' (${bulanJaspel})?`)) return;
+
+        const btn = document.getElementById('btnBulkSubmit');
+        btn.innerText = "Memproses..."; btn.disabled = true;
+        let itemsToUpdate = Array.from(checkedBoxes).map(cb => ({ kode_no: cb.value, sheet_asal: cb.getAttribute('data-sheet') }));
+
+        try {
+            const response = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "update_jasa_bulk", items: itemsToUpdate, bulan: bulanJaspel }) });
+            const res = await response.json();
+            alert(res.message);
+            loadData(); 
+        } catch(e) { alert("Error jaringan."); } finally { btn.innerText = "✅ Tandai Terbayarkan"; btn.disabled = false; }
+    }
+
+    function tutupModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    // --- FUNGSI TAMBAHAN: Deteksi Dropdown VPK ---
+    function deteksiStatusVPK() {
+        const status = document.getElementById('editKlaim').value;
+        const btnKoreksi = document.getElementById('btnKoreksiVPK');
+        btnKoreksi.style.display = (status === "VPK") ? "block" : "none";
+    }
+
+    function bukaModalJaspel(kode, numCair) {
+        const p = dataPasienOriginal.find(x => x.kode_no === kode);
+        selectedKode = kode; 
+        document.getElementById('infoPasienJaspel').innerText = `${kode} - ${p.nama}`;
+        
+        const isUmumSheet = p.sheet_asal.includes("Umum");
+        const tipeBayar = (p.data_medis && p.data_medis['PEMBAYARAN'] || "").toUpperCase();
+        
+        const nominalInput = document.getElementById('editNominal');
+        const pesanKunci = document.getElementById('pesanKunciNominal');
+        const editKlaim = document.getElementById('editKlaim');
+
+        // LOGIKA KUNCI: Kunci jika (Umum Murni) ATAU (Jasa Raharja di Sheet Umum)
+        if (isUmumSheet) {
+            // Nominal selalu dikunci untuk semua pasien di sheet Umum (termasuk Jasa Raharja)
+            // karena semua nominal di sheet ini berasal dari rumus otomatis.
+            nominalInput.value = numCair; 
+            nominalInput.readOnly = true;
+            nominalInput.classList.add("input-locked"); 
+            pesanKunci.style.display = "block";
+            
+            if (tipeBayar.includes("RAHARJA")) {
+                pesanKunci.innerText = "🔒 Jasa Raharja dikunci karena nominal dihitung otomatis.";
+                editKlaim.disabled = false; // Status tetap bisa diubah
+            } else {
+                pesanKunci.innerText = "🔒 Pasien UMUM otomatis 'Disetujui' & nominal terkunci.";
+                editKlaim.value = "Disetujui"; // Default untuk umum murni
+            }
+        } else {
+            // Ini sheet BPJS
+            editKlaim.value = p.status_klaim || "Pending"; 
+            nominalInput.value = p.nominal_cair || numCair; 
+            nominalInput.readOnly = false;
+            nominalInput.classList.remove("input-locked"); 
+            pesanKunci.style.display = "none";
+        }
+        
+        document.getElementById('editJasa').value = p.status_jasa; 
+        document.getElementById('editBulan').value = p.bulan_jaspel;
+        deteksiStatusVPK();
+        document.getElementById('modalJaspel').style.display = 'block';
+    }
+
+    function bukaModalMedis(kode) {
+        const p = dataPasienOriginal.find(x => x.kode_no === kode);
+        selectedKode = kode; selectedSheet = p.sheet_asal;
+        document.getElementById('infoPasienMedis').innerText = `${kode} - ${p.nama} (${p.sheet_asal.replace('DB_','')})`;
+        const wadah = document.getElementById('wadahFormMedis'); wadah.innerHTML = ""; 
+        for (let kunci in p.data_medis) {
+            let inputHtml = ""; let val = p.data_medis[kunci];
+            if (kunci === "DOKTER") inputHtml = `<select id="medis_${kunci}" style="width:100%; padding:8px;">${buildOptions(listDokter, val)}</select>`;
+            else if (kunci.includes("KONSUL") || kunci.includes("RABER")) inputHtml = `<select id="medis_${kunci}" style="width:100%; padding:8px;">${buildOptions(listSpesialis, val)}</select>`;
+            else if (kunci === "ANESTESI") inputHtml = `<select id="medis_${kunci}" style="width:100%; padding:8px;">${buildOptions(listAnestesi, val)}</select>`;
+            else if (kunci === "USG" || kunci === "LABORATORIUM" || kunci === "RADIOLOGI") inputHtml = `<select id="medis_${kunci}" style="width:100%; padding:8px;">${buildOptions(listYaTidak, val)}</select>`;
+            else if (kunci === "PEMBAYARAN") inputHtml = `<select id="medis_${kunci}" style="width:100%; padding:8px;">${buildOptions(selectedSheet.includes("BPJS") ? listBayarBPJS : listBayarUmum, val)}</select>`;
+            else if (kunci === "ASAL" || kunci === "ASAL PASIEN") inputHtml = `<select id="medis_${kunci}" style="width:100%; padding:8px;">${buildOptions(listAsal, val)}</select>`;
+            else if (kunci === "JENIS KASUS") inputHtml = `<select id="medis_${kunci}" style="width:100%; padding:8px;">${buildOptions(listJenisKasus, val)}</select>`;
+            else inputHtml = `<input type="text" id="medis_${kunci}" value="${val}" style="width:100%; padding:8px;">`;
+            wadah.innerHTML += `<div style="margin-bottom:12px;"><label style="display:block; font-weight:bold; font-size:12px; margin-bottom:4px; color:#555;">${kunci}</label>${inputHtml}</div>`;
+        }
+        document.getElementById('modalMedis').style.display = 'block';
+    }
+
+    async function simpanJaspel() {
+        const btn = document.querySelector("#modalJaspel .btn-refresh"); 
+        btn.innerText = "Memproses..."; btn.disabled = true;
+
+        const p = dataPasienOriginal.find(x => x.kode_no === selectedKode);
+        const isUmumSheet = p.sheet_asal.includes("Umum");
+        
+        // PENTING: Kirim null jika dari sheet Umum agar backend tidak menjalankan .setValue() pada kolom Total
+        const nilaiNominal = isUmumSheet ? null : document.getElementById('editNominal').value;
+
+        try {
+            await fetch(WEB_APP_URL, { 
+                method: "POST", 
+                headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+                body: JSON.stringify({ 
+                    action: "update_admin", 
+                    kode_no: selectedKode, 
+                    status_klaim: document.getElementById('editKlaim').value, 
+                    nominal_cair: nilaiNominal, 
+                    status_jasa: document.getElementById('editJasa').value, 
+                    bulan: document.getElementById('editBulan').value 
+                }) 
+            });
+            alert("Perubahan berhasil disimpan!"); 
+            tutupModal('modalJaspel'); 
+            loadData();
+        } catch(e) { 
+            alert("Gagal menyimpan. Periksa koneksi internet."); 
+        } finally { 
+            btn.innerText = "💾 Simpan Jaspel"; 
+            btn.disabled = false; 
+        }
+    }
+
+    // --- FUNGSI TAMBAHAN: Eksekusi API Buat Koreksi VPK ---
+    async function prosesKoreksiVPK() {
+        const nominal = document.getElementById('editNominal').value;
+        const bulan = document.getElementById('editBulan').value;
+        
+        if (Number(nominal) >= 0) {
+            alert("Nominal koreksi VPK harus bernilai negatif (minus)!"); return;
+        }
+        if (bulan === "-") {
+            alert("Pilih Bulan Jaspel untuk pemotongan!"); return;
+        }
+
+        if (!confirm("Sistem akan menduplikasi data pasien ini ke baris baru dengan nilai MINUS.\n\nPasien asli akan tetap utuh (sebagai jejak audit), dan baris baru ini akan bertugas memotong jaspel dokter. Lanjutkan?")) return;
+
+        const btn = document.getElementById('btnKoreksiVPK');
+        btn.innerText = "Memproses Duplikasi..."; btn.disabled = true;
+
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "buat_koreksi_vpk",
+                    kode_no: selectedKode,
+                    nominal_minus: nominal,
+                    bulan: bulan,
+                    sheet_asal: dataPasienOriginal.find(x => x.kode_no === selectedKode).sheet_asal
+                })
+            });
+            const res = await response.json();
+            alert(res.message);
+            tutupModal('modalJaspel');
+            loadData();
+        } catch(e) { alert("Error jaringan"); }
+        finally { btn.innerText = "🔄 Simpan sebagai Koreksi VPK (Baris Baru)"; btn.disabled = false; }
+    }
+
+    async function simpanMedis() {
+        const btn = document.querySelector("#modalMedis .btn-medis"); btn.innerText = "Memproses..."; btn.disabled = true;
+        let payload = {}; document.querySelectorAll('#wadahFormMedis input, #wadahFormMedis select').forEach(inp => payload[inp.id.replace('medis_', '')] = inp.value);
+        try {
+            await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "update_medis", kode_no: selectedKode, sheet_asal: selectedSheet, payload_medis: payload }) });
+            alert("Berhasil!"); tutupModal('modalMedis'); loadData();
+        } catch(e) { alert("Error jaringan"); } finally { btn.innerText = "💾 Simpan Data Medis"; btn.disabled = false; }
+    }
+
+    window.onload = loadData;
+</script>
+</body>
+</html>
