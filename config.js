@@ -23,6 +23,8 @@ function renderNavbar() {
             roles: ["keuangan", "admin"], 
             items: [
                 { name: "Karyawan & Kinerja", link: "karyawan.html", icon: "👥" },
+                // Menambahkan admin_kinerja.html di sini
+                { name: "Data Kinerja", link: "admin_kinerja.html", icon: "⭐" }, 
                 { name: "Master Variabel Jaspel", link: "variabel.html", icon: "🎛️" }
             ]
         },
@@ -30,6 +32,8 @@ function renderNavbar() {
             title: "📁 Laporan & Arsip",
             roles: ["keuangan", "direksi", "admin"], 
             items: [
+                // Menambahkan admin_laporan.html di sini
+                { name: "Laporan Jaspel", link: "admin_laporan.html", icon: "📑" },
                 { name: "Buku Besar / Arsip", link: "arsip.html", icon: "📚" },
                 { name: "Jejak Audit Keamanan", link: "log_audit.html", icon: "🛡️" }
             ]
