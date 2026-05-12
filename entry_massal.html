@@ -78,11 +78,36 @@
 <script>
     let tabelExcel = null;
 
-    // --- DAFTAR DROPDOWN ---
-    const listStatus = ["Draft", "Pending", "Disetujui", "VPK", "Tidak Layak"]; // Dropdown Status Baru
-    const listSpesialis = ["", "dr. Weny Inrianto, M.Sc, Sp.A", "dr Arif Setyo Wibowo, Sp.An.TI", "dr. Puspita Sari, Sp. OG", "dr. Lilik Eko Pranantyo, Sp PD", "dr Alfian Fahmy, Sp.B", "dr. Dewi Hayu Kirana, Sp.N"];
+    // --- DAFTAR DROPDOWN YANG DIPERBARUI ---
+    const listStatus = ["Draft", "Pending", "Disetujui", "VPK", "Tidak Layak"];
+    
+    const listDaftarNama = [
+        "", 
+        "dr Arif Setyo Wibowo, Sp.An.TI",
+        "dr. Puspita Sari, Sp. OG",
+        "dr. Weny Inrianto, M.Sc, Sp.A",
+        "dr. Lilik Eko Pranantyo, Sp PD",
+        "dr Alfian Fahmy, Sp.B",
+        "dr. Bambang Sasangka, Sp. PK",
+        "dr. Andika Setyawan, Sp. Rad",
+        "dr. Dianing Pratiwi, M.Med.Sc., Sp. PK",
+        "dr. Dewi Hayu Kirana, Sp.N",
+        "dr. Nurul Khafidz Subekti",
+        "dr. Gerda Bina Larasati",
+        "dr. Irawan Jati Asmara",
+        "dr. Muhammad Mirdza",
+        "dr. Dyah Chandra Suwastiko Putri",
+        "dr. Husni Muarif",
+        "dr. Hendrisa Heppy Natalina",
+        "dr. Tri Widjaja",
+        "dr. Kriswahyu Yudo Wirawan",
+        "Guntur Labibbasil Al Rai S.Ftr."
+    ];
+
+    const listDokter = listDaftarNama;
+    const listSpesialis = listDaftarNama; // Disamakan agar fleksibel untuk form Konsul/Raber
+    
     const listAnestesi = ["", "dr Arif Setyo Wibowo, Sp.An.TI"];
-    const listDokter = ["", "dr. Weny Inrianto, M.Sc, Sp.A", "dr Arif Setyo Wibowo, Sp.An.TI", "dr. Puspita Sari, Sp. OG", "dr. Lilik Eko Pranantyo, Sp PD", "dr Alfian Fahmy, Sp.B", "dr. Dewi Hayu Kirana, Sp.N", "dr. Tri Widjaja", "dr. Irawan Jati Asmara", "dr. Muhammad Mirdza", "dr. Dyah Chandra Suwastiko Putri", "dr. Husni Muarif", "dr. Hendrisa Heppy Natalina", "dr. Kriswahyu Yudo Wirawan", "dr. Nurul Khafidz Subekti", "dr. Gerda Bina Larasati"];
     const listYaTidak = ["", "Ya", "Tidak"];
     const listBayarUmum = ["", "Umum", "Jasa Raharja"];
     const listBayarBPJS = ["", "BPJS", "BPJS-TK", "Jamkesda"];
