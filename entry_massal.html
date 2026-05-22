@@ -29,7 +29,7 @@
         .btn-draft { background: #ffc107; color: black; }
         .btn-draft:hover { background: #e0a800; }
         .btn-tarik { background: #17a2b8; color: white; }
-        .btn-pending { background: #6f42c1; color: white; } /* Tombol Baru */
+        .btn-pending { background: #6f42c1; color: white; }
         .btn-final { background: #28a745; color: white; width: 100%; font-size: 16px; padding: 15px; justify-content: center;}
         .btn-final:hover { background: #218838; }
 
@@ -39,17 +39,14 @@
 </head>
 <body>
     <script>
-    // Proteksi Halaman: Cek apakah user sudah login
-    if (!localStorage.getItem("userRole")) {
-        window.location.href = "login.html"; // Tendang balik ke login jika belum ada role
-    }
+    if (!localStorage.getItem("userRole")) { window.location.href = "login.html"; }
 </script>
 <script>renderNavbar();</script>
 <div class="card">
     <h2 class="header-title">🚀 Workspace Entry Massal (Draf & Pending)</h2>
     
     <div class="alert-info">
-        💡 <b>Info Sinkronisasi:</b> Anda kini dapat memuat pasien yang berstatus <b>Pending</b> untuk diproses massal. Kolom status di tabel sudah dikunci menggunakan dropdown. Ubah status pasien Pending menjadi <b>Disetujui, VPK, atau Tidak Layak</b>, lalu klik Kirim Final.
+        💡 <b>Info Cerdas (Auto-Corrector):</b> Anda bisa langsung <i>Copy-Paste</i> data berantakan dari Excel ke sini. Kata seperti <code>PENDING</code> akan otomatis disesuaikan. Nama dokter singkatan seperti <code>dr. ALVIAN</code>, atau teks <code>UGD</code> akan otomatis diterjemahkan oleh sistem!
     </div>
 
     <div class="top-panel">
@@ -78,8 +75,8 @@
 <script>
     let tabelExcel = null;
 
-    // --- DAFTAR DROPDOWN YANG DIPERBARUI ---
-    const listStatus = ["Draft", "Pending", "Disetujui", "VPK", "Tidak Layak"];
+    // UPDATE: "Draft" sudah dihapus dari pilihan Dropdown Status Klaim
+    const listStatus = ["Pending", "Disetujui", "VPK", "Tidak Layak"]; 
     
     const listDaftarNama = [
         "", 
@@ -105,7 +102,7 @@
     ];
 
     const listDokter = listDaftarNama;
-    const listSpesialis = listDaftarNama; // Disamakan agar fleksibel untuk form Konsul/Raber
+    const listSpesialis = listDaftarNama; 
     
     const listAnestesi = ["", "dr Arif Setyo Wibowo, Sp.An.TI"];
     const listYaTidak = ["", "Ya", "Tidak"];
@@ -114,7 +111,6 @@
     const listAsal = ["", "Poli", "UGD"];
     const listJenisKasus = ["", "Operasi", "Non Operasi"];
 
-    // Kolom Status diubah menjadi Dropdown
     const konfigurasiHeader = {
         "DB_Rajal_Umum": [
             { title: 'NO [Otomatis]', width: 100, readOnly: true }, { title: 'TANGGAL', width: 100 }, { title: 'NO. TRANSAKSI', width: 120 }, { title: 'NOMOR RM', width: 100 }, { title: 'NAMA PASIEN', width: 180 }, { title: 'ALAMAT', width: 150 }, { title: 'DOKTER', width: 150, type: 'dropdown', source: listDokter }, { title: 'JENIS KASUS', width: 100, type: 'dropdown', source: listJenisKasus }, { title: 'KONSUL 1', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'KONSUL 2', width: 120, type: 'dropdown', source: listSpesialis }, { title: 'USG', width: 80, type: 'dropdown', source: listYaTidak }, { title: 'PEMBAYARAN', width: 100, type: 'dropdown', source: listBayarUmum }, { title: 'STATUS', width: 110, type: 'dropdown', source: listStatus }, { title: 'PENDAFTARAN (SARANA)', width: 130 }, { title: 'PENDAFTARAN (PELAYANAN)', width: 130 }, { title: 'TINDAKAN (SARANA)', width: 130 }, { title: 'TINDAKAN (PELAYANAN)', width: 130 }, { title: 'LABORATORIUM (SARANA)', width: 130 }, { title: 'LABORATORIUM (PELAYANAN)', width: 130 }, { title: 'RADIOLOGI (SARANA)', width: 130 }, { title: 'RADIOLOGI (PELAYANAN)', width: 130 }, { title: 'FARMASI (SARANA)', width: 130 }, { title: 'FARMASI (PELAYANAN)', width: 130 }
@@ -141,14 +137,76 @@
             minDimensions: [kolomDipilih.length, 50],
             defaultColWidth: 100,
             tableOverflow: true, tableWidth: "100%", tableHeight: "65vh",
-            contextMenu: function() { return false; }
+            contextMenu: function() { return false; },
+            
+            // FUNGSI PINTAR: INTERSEPTOR & PENERJEMAH COPY PASTE EXCEL
+            onbeforechange: function(instance, cell, x, y, value) {
+                if (value === null || value === undefined) return value;
+                let strVal = String(value).trim().toUpperCase();
+                if (strVal === "") return value;
+
+                // 1. Sapu bersih Error Bawaan Excel dan Singkatan Kosong
+                if (strVal === "#N/A" || strVal === "#REF!" || strVal === "-" || strVal === "NA") {
+                    return ""; 
+                }
+
+                // Ambil Nama Kolom berdasarkan Index x yang sedang di-paste
+                const namaKolom = kolomDipilih[x].title.toUpperCase();
+
+                // 2. Koreksi Otomatis Kolom Status
+                if (namaKolom.includes("STATUS")) {
+                    if (strVal === "PENDING") return "Pending";
+                    if (strVal === "DISETUJUI") return "Disetujui";
+                    if (strVal === "VPK") return "VPK";
+                    if (strVal === "TIDAK LAYAK") return "Tidak Layak";
+                }
+
+                // 3. Koreksi Otomatis Kolom Nama Dokter Singkatan
+                if (namaKolom.includes("DOKTER") || namaKolom.includes("KONSUL") || namaKolom.includes("RABER") || namaKolom.includes("ANESTESI")) {
+                    if (strVal.includes("ALVIAN") || strVal.includes("FAHMY") || strVal.includes("ALFIAN")) return "dr Alfian Fahmy, Sp.B";
+                    if (strVal.includes("LILIK")) return "dr. Lilik Eko Pranantyo, Sp PD";
+                    if (strVal.includes("PUSPITA")) return "dr. Puspita Sari, Sp. OG";
+                    if (strVal.includes("WENY")) return "dr. Weny Inrianto, M.Sc, Sp.A";
+                    if (strVal.includes("DEWI HAYU")) return "dr. Dewi Hayu Kirana, Sp.N";
+                    if (strVal.includes("ARIF") || strVal.includes("SETYO")) return "dr Arif Setyo Wibowo, Sp.An.TI";
+                    if (strVal.includes("BAMBANG")) return "dr. Bambang Sasangka, Sp. PK";
+                    if (strVal.includes("ANDIKA")) return "dr. Andika Setyawan, Sp. Rad";
+                    if (strVal.includes("DIANING")) return "dr. Dianing Pratiwi, M.Med.Sc., Sp. PK";
+                    if (strVal.includes("NURUL") || strVal.includes("KHAFIDZ")) return "dr. Nurul Khafidz Subekti";
+                    if (strVal.includes("GERDA")) return "dr. Gerda Bina Larasati";
+                    if (strVal.includes("IRAWAN") || strVal === "UGD") return "dr. Irawan Jati Asmara";
+                    if (strVal.includes("MIRDZA")) return "dr. Muhammad Mirdza";
+                    if (strVal.includes("DYAH") || strVal.includes("CHANDRA")) return "dr. Dyah Chandra Suwastiko Putri";
+                    if (strVal.includes("HUSNI")) return "dr. Husni Muarif";
+                    if (strVal.includes("HENDRISA")) return "dr. Hendrisa Heppy Natalina";
+                    if (strVal.includes("TRI WIDJAJA")) return "dr. Tri Widjaja";
+                    if (strVal.includes("KRISWAHYU") || strVal.includes("YUDO")) return "dr. Kriswahyu Yudo Wirawan";
+                    if (strVal.includes("GUNTUR") || strVal.includes("LABIBBASIL")) return "Guntur Labibbasil Al Rai S.Ftr.";
+                }
+
+                // 4. Koreksi Tipe Bayar dan Kasus
+                if (namaKolom.includes("PEMBAYARAN")) {
+                    if (strVal === "BPJS-TK" || strVal === "BPJSTK") return "BPJS-TK";
+                    if (strVal === "JASA RAHARJA" || strVal === "JASARAHARJA") return "Jasa Raharja";
+                    if (strVal === "UMUM") return "Umum";
+                    if (strVal === "BPJS") return "BPJS";
+                    if (strVal === "JAMKESDA") return "Jamkesda";
+                }
+                
+                if (namaKolom.includes("KASUS")) {
+                    if (strVal === "NON OPERASI" || strVal === "NON-OPERASI" || strVal === "NON OPR") return "Non Operasi";
+                    if (strVal === "OPERASI" || strVal === "OPR") return "Operasi";
+                }
+
+                // Jika tidak ada aturan yang cocok, biarkan data aslinya masuk
+                return value; 
+            }
         });
     }
 
     function ubahFormatTabel() { inisialisasiTabel(document.getElementById('sheetTujuan').value); }
     function bersihkanTabel() { if(confirm("Yakin ingin mengosongkan semua isian di tabel ini?")) ubahFormatTabel(); }
 
-    // FUNGSI GABUNGAN TARIK DATA (DRAFT & PENDING)
     async function tarikData(mode) {
         const targetSheet = document.getElementById('sheetTujuan').value;
         const btn = mode === 'draft' ? document.getElementById('btnTarikDraft') : document.getElementById('btnTarikPending');
@@ -189,8 +247,8 @@
 
         const targetSheet = document.getElementById('sheetTujuan').value;
         const pesan = isFinalMode ? 
-            `Siap mengirim FINAL ${dataBersih.length} data pasien?\n\nJika Status di tabel Anda isi 'VPK'/'Tidak Layak', sistem akan mematuhinya. Jika dibiarkan 'Pending', sistem akan mengubahnya menjadi 'Disetujui' jika nilai klaimnya sah.` : 
-            `Simpan ${dataBersih.length} data pasien ke Draf di ${targetSheet}?`;
+            `Siap mengirim FINAL ${dataBersih.length} data pasien?\n\nSistem akan mengunci entri ini. Jika klaim masih ada yang ditolak BPJS, statusnya tetap bisa Anda perbarui dari halaman Admin Jaspel Individu.` : 
+            `Simpan ${dataBersih.length} data pasien sebagai Draf (Save State) di ${targetSheet}?`;
 
         if (!confirm(pesan)) return;
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Laporan Final Jaspel Karyawan</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 20px; font-size: 13px; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 20px; font-size: 13px; margin: 0;}
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 1200px; margin: auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;}
         .header-title { margin: 0; color: #28a745; font-size: 22px; }
@@ -25,6 +25,8 @@
         .btn-refresh { background: #007bff; color: white; }
         .btn-excel { background: #28a745; color: white; }
         .btn-pdf { background: #dc3545; color: white; }
+        .btn-backup { background: #ffc107; color: #333; }
+        .btn-backup:hover { background: #e0a800; }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -32,11 +34,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <script>
-    // Proteksi Halaman: Cek apakah user sudah login
-    if (!localStorage.getItem("userRole")) {
-        window.location.href = "login.html"; // Tendang balik ke login jika belum ada role
-    }
-</script>
+    if (!localStorage.getItem("userRole")) { window.location.href = "login.html"; }
+    </script>
     <script src="config.js"></script>
 </head>
 <body>
@@ -48,7 +47,7 @@
             <button class="btn btn-refresh" onclick="loadData()">🔄 Tarik Data</button>
             <button class="btn btn-excel" onclick="exportSPJExcel(event)">📥 Download SPJ (Excel)</button>
             <button class="btn btn-pdf" onclick="exportPDF_DPJP(event)">📄 Download Rincian DPJP (PDF)</button>
-            <button class="btn" style="background:#ffc107; color:#333;" onclick="arsipkanLaporan()">🔒 Kunci & Arsipkan</button>
+            <button class="btn btn-backup" onclick="arsipkanLaporan()">📁 Finalisasi & Backup (Drive)</button>
         </div>
     </div>
 
@@ -65,6 +64,10 @@
             <span style="font-weight:bold; color:#333;">Periode Pelayanan:</span>
             <input type="text" id="periodeLaporan" class="periode-box" value="April 2026" title="Ketik bulan pelayanan yang klaimnya cair di bulan ini">
         </div>
+    </div>
+
+    <div style="background: #d1ecf1; color: #0c5460; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; border: 1px solid #bee5eb;">
+        💡 <b>Alur Kerja:</b> Tarik Data ➔ Cek Kesesuaian ➔ Download Excel/PDF ➔ Klik <b>Finalisasi & Backup (Drive)</b> untuk membekukan data dan menyapu bersih database bulan ini.
     </div>
 
     <table>
@@ -134,7 +137,7 @@
         let gPengelola = 0, gDokter = 0, gPetugas = 0, gTim = 0, gJtl = 0, gTotal = 0;
 
         if (dataFiltered.length === 0) { 
-            html = '<tr><td colspan="7" style="text-align:center; padding: 30px;">Tidak ada data yang sesuai filter.</td></tr>'; 
+            html = '<tr><td colspan="7" style="text-align:center; padding: 30px;">Tidak ada data yang sesuai filter / Data periode ini sudah dibackup (kosong).</td></tr>'; 
         } else {
             dataFiltered.forEach(k => {
                 gPengelola += k.pengelola; gDokter += k.dokter; gPetugas += k.petugas; 
@@ -175,7 +178,6 @@
         if(dataPasienLampiran.length === 0) { alert("Data kosong!"); return; }
         const btn = event.target; btn.innerText = "⏳ Membangun PDF..."; btn.disabled = true;
 
-        // Ambil Nilai Periode dari Input Box
         const periodeLaporan = document.getElementById('periodeLaporan').value || "Periode Terkini";
 
         let groupedDPJP = {};
@@ -211,8 +213,6 @@
                 { text: 'RINCIAN PELAYANAN PASIEN PER DOKTER', style: 'headerTitle', alignment: 'center' },
                 { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 535, y2: 0, lineWidth: 1 }], margin: [0, 0, 0, 10] },
                 { text: `Nama Dokter : ${dokter}`, bold: true, fontSize: 10 },
-                
-                // Menuliskan Periode secara Dinamis di PDF
                 { text: `Periode : Laporan ${periodeLaporan}`, fontSize: 9, margin: [0, 0, 0, 10] }
             );
 
@@ -237,7 +237,7 @@
                     try { if(tanggalStr && tanggalStr.length > 10) tanggalStr = tanggalStr.substring(0, 10); } catch(e) {}
 
                     let statusLabel = (p.status_klaim || "Pending").toUpperCase();
-                    let statusColor = (statusLabel === "LUNAS" || statusLabel === "SELESAI") ? 'green' : 'red';
+                    let statusColor = (statusLabel === "LUNAS" || statusLabel === "SELESAI" || statusLabel === "DISETUJUI") ? 'green' : 'red';
                     totalTarif += p.tarif; totalJasa += p.jasa_medik;
 
                     tableBody.push([
@@ -273,7 +273,6 @@
         if(dataFiltered.length === 0) { alert("Tidak ada data untuk diekspor!"); return; }
         const btn = event.target; btn.innerText = "⏳ Sedang Menyusun Excel..."; btn.disabled = true;
 
-        // Ambil Nilai Periode dari Input Box
         const periodeLaporan = document.getElementById('periodeLaporan').value || "Periode Terkini";
 
         try {
@@ -284,8 +283,6 @@
             const ws1 = workbook.addWorksheet('SPJ_Jaspel');
             ws1.getCell('A1').value = "DAFTAR PENERIMAAN INSENTIF JASA PELAYANAN";
             ws1.getCell('A2').value = "RUMAH SAKIT UMUM DAERAH SARAS ADYATMA"; 
-            
-            // Menuliskan Periode secara Dinamis di Excel
             ws1.getCell('A3').value = `PERIODE PELAYANAN: ${periodeLaporan.toUpperCase()}`; 
             
             for(let i=1; i<=3; i++) {
@@ -336,7 +333,6 @@
             ws1.getCell(`B${sigRow}`).value = "Mengetahui,"; ws1.getCell(`B${sigRow + 1}`).value = "Direktur RSUD Saras Adyatma";
             ws1.getCell(`B${sigRow + 5}`).value = "drg. TRI WAHYUNI, MPH"; ws1.getCell(`B${sigRow + 6}`).value = "NIP 198407112009032010";
             
-            // Tanggal Cetak SPJ Otomatis Hari Ini
             let today = new Date(); let dd = String(today.getDate()).padStart(2, '0'); let mm = String(today.getMonth() + 1).padStart(2, '0'); let yyyy = today.getFullYear();
             ws1.getCell(`O${sigRow}`).value = `Bantul, ${dd}-${mm}-${yyyy}`; 
             
@@ -415,7 +411,7 @@
                             
                             if(colNumber === 6 && r !== row3Index) {
                                 let valStatus = cell.value;
-                                if(valStatus === "LUNAS" || valStatus === "SELESAI") cell.font = { color: { argb: 'FF008000' } }; 
+                                if(valStatus === "LUNAS" || valStatus === "SELESAI" || valStatus === "DISETUJUI") cell.font = { color: { argb: 'FF008000' } }; 
                                 else cell.font = { color: { argb: 'FFFF0000' } }; 
                             }
                         }
@@ -435,31 +431,40 @@
         }
     }
 
+    // ==============================================================
+    // FUNGSI TRIGGER BACKUP COLD STORAGE & PURGING
+    // ==============================================================
     async function arsipkanLaporan() {
         const periodeLaporan = document.getElementById('periodeLaporan').value || "Periode Terkini";
         
-        let konfirmasi = confirm(`⚠️ PERINGATAN BUKU BESAR!\n\nApakah Anda yakin ingin MENGUNCI dan MENGARSIPKAN laporan untuk periode [${periodeLaporan}]?\n\nSemua pasien dengan status Lunas akan ditandai "Terbayarkan" dan TIDAK AKAN BISA DIHITUNG LAGI bulan depan.`);
+        let konfirmasi = confirm(`⚠️ PERINGATAN FINALISASI & BACKUP!\n\nApakah Anda yakin ingin memproses Jaspel periode [${periodeLaporan}]?\n\nSistem akan:\n1. Membuat file Spreadsheet Arsip Permanen di Google Drive.\n2. MENGHAPUS data pasien bulan ini dari Database Utama agar sistem kembali ringan.\n\nPastikan Anda sudah mendownload SPJ Excel / PDF. Lanjutkan?`);
         
         if(!konfirmasi) return;
 
-        document.getElementById('bodyTabel').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 30px;">⏳ Sedang membekukan data dan menyalin ke Arsip... Jangan tutup halaman ini.</td></tr>';
+        document.getElementById('bodyTabel').innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 40px; color:#004085; font-size:16px;">
+            ⏳ <b>Sedang Memproses...</b><br><br>
+            Sistem sedang mengkloning data ke Google Drive dan menyapu bersih database utama.<br>
+            Tunggu sekitar 10 - 20 detik dan <b>JANGAN</b> menutup halaman ini.
+        </td></tr>`;
+        document.getElementById('footerTabel').innerHTML = '';
         
         try {
+            // Memanggil proses_backup_file yang sudah terintegrasi dengan Purging di Code.gs
             const response = await fetch(WEB_APP_URL, { 
                 method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-                body: JSON.stringify({ action: "arsipkan_laporan", periode: periodeLaporan }) 
+                body: JSON.stringify({ action: "proses_backup_file", periode: periodeLaporan }) 
             });
             const res = await response.json();
             
             if(res.status === "success") {
-                alert("✅ SUKSES!\n\n" + res.message + "\n\nSilakan hapus/reset nominal pada Sheet 'Rekap_Dokter, Petugas, dll' di Google Sheets Anda untuk bersiap menerima data Jaspel bulan depan.");
-                loadData(); // Akan otomatis kosong karena pasien sudah terbayarkan
+                alert("✅ PROSES SELESAI!\n\n" + res.message);
+                loadData(); // Memuat ulang tabel (harusnya jadi kosong karena sudah terhapus)
             } else {
                 alert("❌ Gagal: " + res.message);
                 loadData();
             }
         } catch (e) {
-            alert("Terjadi kesalahan koneksi saat mengarsipkan data.");
+            alert("❌ Terjadi kesalahan koneksi saat memproses backup. Coba beberapa saat lagi.");
             loadData();
         }
     }

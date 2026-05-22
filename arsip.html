@@ -2,178 +2,84 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Buku Besar Riwayat Jaspel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Arsip & Cold Storage</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 20px; font-size: 13px; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 1200px; margin: auto; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 20px; font-size: 13px; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 1000px; margin: auto; }
         
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;}
-        .header-title { margin: 0; color: #6c757d; font-size: 22px; display:flex; align-items:center; gap:10px;}
+        .header-title { margin: 0; color: #004085; font-size: 22px; display:flex; align-items:center; gap:10px;}
         
-        .controls { background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; display: flex; gap: 15px; align-items: center; margin-bottom: 20px; }
-        select { padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-weight: bold; outline: none; width: 250px;}
-        
-        .summary-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
-        .summary-card { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #17a2b8; }
-        .summary-card h3 { margin: 0 0 5px 0; font-size: 12px; color: #666; text-transform: uppercase; }
-        .summary-card .value { font-size: 20px; font-weight: bold; color: #333; }
-
-        /* TABS STYLING */
-        .tabs { display: flex; border-bottom: 2px solid #dee2e6; margin-bottom: 20px; overflow-x: auto;}
-        .tab-btn { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 14px; font-weight: bold; color: #6c757d; border-bottom: 3px solid transparent; transition: 0.3s; white-space: nowrap;}
-        .tab-btn:hover { color: #004085; }
-        .tab-btn.active { color: #004085; border-bottom: 3px solid #004085; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
-
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px;}
-        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
-        th { background: #343a40; color: white; }
-        .text-right { text-align: right; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px;}
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #343a40; color: white; font-weight: bold;}
         .text-center { text-align: center; }
         tr:hover { background-color: #f8f9fa; }
         
-        .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; color: white; }
-        .bg-green { background-color: #28a745; } .bg-blue { background-color: #007bff; } .bg-gray { background-color: #6c757d; }
-        
-        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; transition: 0.2s;}
-        .btn-excel { background: #28a745; color: white; }
-        .btn-excel:hover { background: #218838; }
+        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s;}
         .btn-primary { background: #007bff; color: white; }
-        .btn-success { background: #28a745; color: white; width: 100%; font-size: 15px; margin-top: 10px; padding: 12px;}
-        .btn-open { background: #17a2b8; color: white; font-size: 12px; text-decoration: none; padding: 5px 10px; border-radius: 4px;}
+        .btn-primary:hover { background: #0056b3; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-open { background: #17a2b8; color: white; font-size: 12px; text-decoration: none; padding: 6px 12px; border-radius: 4px; display: inline-block;}
+        .btn-open:hover { background: #138496; }
+        .btn:disabled { background: #6c757d; cursor: not-allowed; }
         
-        input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 250px; outline: none;}
+        input[type="text"] { padding: 12px; border: 1px solid #ccc; border-radius: 5px; width: 250px; outline: none; font-size: 14px;}
+        input[type="text"]:focus { border-color: #007bff; box-shadow: 0 0 5px rgba(0,123,255,0.3); }
 
-        .backup-panel { background: #e9ecef; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #dee2e6;}
+        .backup-panel { background: #fff3cd; padding: 25px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #ffeeba;}
+        .backup-panel h3 { margin-top: 0; color: #856404; font-size: 18px;}
+        .backup-panel p { font-size: 13px; color: #666; line-height: 1.5; margin-bottom: 20px;}
 
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .alert-info { background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 5px; margin-bottom: 25px; font-size: 14px; border: 1px solid #bee5eb; line-height: 1.5; }
     </style>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script>
     if (!localStorage.getItem("userRole")) { window.location.href = "login.html"; }
     </script>
     <script src="config.js"></script>
 </head>
 <body>
+
 <script>renderNavbar();</script>
+
 <div class="card">
     <div class="header">
-        <h2 class="header-title">🗄️ Buku Besar Riwayat Jaspel <span class="badge bg-gray" style="font-size:12px;">READ-ONLY</span></h2>
-        <button class="btn btn-excel" id="btnExport" style="display: none;" onclick="exportArsipExcel(event)">📥 Download Tabel ke Excel</button>
+        <h2 class="header-title">🗄️ Manajemen Cold Storage</h2>
     </div>
 
-    <div class="tabs">
-        <button class="tab-btn active" onclick="openTab('tab-karyawan')">👥 Arsip Karyawan</button>
-        <button class="tab-btn" onclick="openTab('tab-pasien')">🏥 Arsip Pasien</button>
-        <button class="tab-btn" onclick="openTab('tab-variabel')">⚙️ Kebijakan Variabel</button>
-        <button class="tab-btn" onclick="openTab('tab-coldstorage'); muatDaftarArsip();" style="color: #d35400;">📁 Cold Storage (Google Drive)</button>
+    <div class="alert-info">
+        💡 <b>Informasi:</b> Halaman ini adalah pusat kendali untuk melakukan <i>Backup</i> permanen bulanan. File backup akan disimpan dengan aman di Google Drive Anda dalam format Spreadsheet statis (rumus dimatikan) untuk kebutuhan audit.
     </div>
 
-    <div id="areaKontrolSnapshot">
-        <div class="controls">
-            <label style="font-weight:bold; color:#856404;">Pilih Periode Arsip:</label>
-            <select id="selectPeriode" onchange="loadArsipData()">
-                <option value="">⏳ Memuat daftar periode...</option>
-            </select>
-            <span style="color:#856404; font-size:12px; margin-left:auto;"><i>Data pada halaman ini adalah arsip beku internal dari Database.</i></span>
-        </div>
-
-        <div class="summary-cards">
-            <div class="summary-card" style="border-color: #28a745;">
-                <h3>Total Dana Terdistribusi</h3>
-                <div class="value" id="sumDana">Rp 0</div>
-            </div>
-            <div class="summary-card" style="border-color: #007bff;">
-                <h3>Total Penerima (Karyawan)</h3>
-                <div class="value" id="sumKar">0 Orang</div>
-            </div>
-            <div class="summary-card" style="border-color: #dc3545;">
-                <h3>Total Pasien Dilayani</h3>
-                <div class="value" id="sumPas">0 Pasien</div>
-            </div>
-        </div>
-    </div>
-
-    <div id="tab-karyawan" class="tab-content active">
-        <div style="overflow-x:auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>NO</th>
-                        <th>NAMA KARYAWAN & JABATAN</th>
-                        <th class="text-right">JASA PENGELOLA</th>
-                        <th class="text-right">JASA DOKTER</th>
-                        <th class="text-right">JASA PETUGAS</th>
-                        <th class="text-right">JASA TIM</th>
-                        <th class="text-right">JTL</th>
-                        <th class="text-right" style="background:#28a745;">TOTAL TERIMA</th>
-                    </tr>
-                </thead>
-                <tbody id="bodyKaryawan">
-                    <tr><td colspan="8" class="text-center" style="padding:20px;">Pilih periode terlebih dahulu.</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="tab-pasien" class="tab-content">
-        <div style="overflow-x:auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>TANGGAL</th>
-                        <th>NAMA PASIEN (RM)</th>
-                        <th>LAYANAN</th>
-                        <th>TIPE BAYAR</th>
-                        <th>DOKTER & PERAN</th>
-                        <th class="text-right">TARIF KLAIM</th>
-                        <th class="text-right">JASA MEDIK</th>
-                    </tr>
-                </thead>
-                <tbody id="bodyPasien">
-                    <tr><td colspan="7" class="text-center" style="padding:20px;">Pilih periode terlebih dahulu.</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="tab-variabel" class="tab-content">
-        <table>
-            <tbody id="bodyVariabel">
-                <tr><td class="text-center" style="padding:20px;">Pilih periode terlebih dahulu.</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div id="tab-coldstorage" class="tab-content">
-        <div class="backup-panel">
-            <h3 style="margin-top:0; color:#004085;">🚀 Finalisasi & Backup Bulanan (Cold Storage)</h3>
-            <p style="font-size: 13px; color: #555;">Fitur ini akan meng-kloning seluruh sheet (Karyawan, Pasien, Variabel, Rekap) ke sebuah file Spreadsheet baru di Google Drive Anda. Seluruh rumus akan dinonaktifkan (diubah menjadi angka permanen) untuk kebutuhan Audit SPI/BPK yang aman.</p>
-            
-            <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
-                <input type="text" id="periodeInput" placeholder="Contoh: Januari 2026">
-                <button class="btn btn-primary" id="btnRun" onclick="eksekusiBackup()" style="width: auto; padding: 11px 20px;">📁 Jalankan Backup Permanen Sekarang</button>
-            </div>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h3 style="margin: 0;">📂 Riwayat File Tersimpan di Drive</h3>
-            <button class="btn btn-primary" style="background: #17a2b8;" onclick="muatDaftarArsip()">🔄 Segarkan Daftar</button>
-        </div>
+    <div class="backup-panel">
+        <h3>🚀 Finalisasi & Backup Bulanan</h3>
+        <p>Eksekusi fitur ini <b>hanya</b> ketika proses pencairan Jasa Pelayanan bulan tersebut sudah final. Sistem akan meng-kloning data ke Drive, lalu menyapu bersih ribuan baris data pasien lama dari Database Utama agar sistem Web ini kembali ringan dan cepat.</p>
         
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <input type="text" id="periodeInput" placeholder="Contoh: Januari 2026">
+            <button class="btn btn-danger" id="btnRun" onclick="eksekusiBackup()" style="padding: 12px 25px; font-size: 14px;">📁 Eksekusi Backup & Purge Data</button>
+        </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0; color: #333;">📂 Riwayat File Tersimpan di Drive</h3>
+        <button class="btn btn-primary" onclick="muatDaftarArsip()">🔄 Segarkan Daftar</button>
+    </div>
+    
+    <div style="overflow-x: auto; border: 1px solid #eee; border-radius: 8px;">
         <table>
             <thead>
                 <tr>
-                    <th>Nama File Backup</th>
-                    <th>Tanggal Dieksekusi</th>
-                    <th class="text-center">Aksi / Link</th>
+                    <th style="width: 50%;">Nama File Backup</th>
+                    <th style="width: 30%;">Tanggal Dieksekusi</th>
+                    <th class="text-center" style="width: 20%;">Aksi</th>
                 </tr>
             </thead>
             <tbody id="tabelArsipDrive">
-                <tr><td colspan="3" class="text-center" style="padding: 20px;">Memuat riwayat arsip...</td></tr>
+                <tr><td colspan="3" class="text-center" style="padding: 30px; color: #666;">⏳ Menghubungkan ke Google Drive...</td></tr>
             </tbody>
         </table>
     </div>
@@ -181,138 +87,18 @@
 </div>
 
 <script>
-    let currentArsipData = null; 
-    let currentPeriode = "";
-
-    function formatRp(angka) { return new Intl.NumberFormat('id-ID').format(Math.round(angka || 0)); }
-    
-    // FUNGSI TABS DINAMIS
-    function openTab(tabId) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        event.target.classList.add('active');
-        document.getElementById(tabId).classList.add('active');
-
-        // Sembunyikan kontrol snapshot jika di Tab Cold Storage
-        if(tabId === 'tab-coldstorage') {
-            document.getElementById('areaKontrolSnapshot').style.display = 'none';
-        } else {
-            document.getElementById('areaKontrolSnapshot').style.display = 'block';
-        }
-    }
-
-    // LOAD DAFTAR PERIODE INTERNAL
-    window.onload = async function() {
-        try {
-            const response = await fetch(WEB_APP_URL, { 
-                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-                body: JSON.stringify({ action: "get_daftar_periode" }) 
-            });
-            const res = await response.json();
-            
-            const sel = document.getElementById('selectPeriode');
-            sel.innerHTML = '<option value="">-- Silakan Pilih Periode --</option>';
-            
-            if(res.status === "success" && res.data.length > 0) {
-                res.data.forEach(p => { sel.innerHTML += `<option value="${p}">${p}</option>`; });
-            } else {
-                sel.innerHTML = '<option value="">Tidak ada arsip tersedia.</option>';
-            }
-        } catch (e) { alert("Gagal memuat daftar periode."); }
+    // Langsung muat daftar arsip dari Google Drive saat halaman dibuka
+    window.onload = function() {
+        muatDaftarArsip();
     };
 
-    // LOAD DATA BERDASARKAN PERIODE
-    async function loadArsipData() {
-        const periode = document.getElementById('selectPeriode').value;
-        const btnExport = document.getElementById('btnExport');
-        
-        if(!periode) {
-            currentArsipData = null; currentPeriode = ""; btnExport.style.display = "none";
-            return;
-        }
-
-        document.getElementById('bodyKaryawan').innerHTML = '<tr><td colspan="8" class="text-center">⏳ Memuat data...</td></tr>';
-        document.getElementById('bodyPasien').innerHTML = '<tr><td colspan="7" class="text-center">⏳ Memuat data...</td></tr>';
-        document.getElementById('bodyVariabel').innerHTML = '<tr><td class="text-center">⏳ Memuat data...</td></tr>';
-        btnExport.style.display = "none"; 
-
-        try {
-            const response = await fetch(WEB_APP_URL, { 
-                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-                body: JSON.stringify({ action: "get_data_arsip", periode: periode }) 
-            });
-            const res = await response.json();
-            
-            if(res.status === "success") {
-                currentArsipData = res.data; 
-                currentPeriode = periode;
-                
-                renderKaryawan(res.data.karyawan);
-                renderPasien(res.data.pasien);
-                renderVariabel(res.data.variabel);
-                btnExport.style.display = "block"; 
-            }
-        } catch (e) { alert("Gagal memuat data arsip."); }
-    }
-
-    function renderKaryawan(data) {
-        let html = ''; let sumDana = 0;
-        data.forEach((k, i) => {
-            sumDana += k.total;
-            html += `<tr>
-                <td>${i+1}</td>
-                <td><b>${k.nama}</b><br><span style="color:#6c757d; font-size:11px;">${k.jabatan}</span></td>
-                <td class="text-right">Rp ${formatRp(k.pengelola)}</td>
-                <td class="text-right">Rp ${formatRp(k.dokter)}</td>
-                <td class="text-right">Rp ${formatRp(k.petugas)}</td>
-                <td class="text-right">Rp ${formatRp(k.tim)}</td>
-                <td class="text-right">Rp ${formatRp(k.jtl)}</td>
-                <td class="text-right" style="font-weight:bold; color:#28a745;">Rp ${formatRp(k.total)}</td>
-            </tr>`;
-        });
-        document.getElementById('bodyKaryawan').innerHTML = html || '<tr><td colspan="8" class="text-center">Tidak ada data.</td></tr>';
-        document.getElementById('sumDana').innerText = "Rp " + formatRp(sumDana);
-        document.getElementById('sumKar').innerText = data.length + " Orang";
-    }
-
-    function renderPasien(data) {
-        let html = ''; 
-        data.forEach(p => {
-            let tgl = p.tanggal; try { if(tgl.length > 10) tgl = tgl.substring(0,10); } catch(e){}
-            html += `<tr>
-                <td>${tgl}</td>
-                <td><b>${p.nama}</b><br><span style="color:#6c757d; font-size:11px;">RM: ${p.rm}</span></td>
-                <td>${p.layanan}</td>
-                <td><span class="badge ${p.pembayaran==='UMUM'?'bg-blue':'bg-green'}">${p.pembayaran}</span></td>
-                <td><b>${p.dokter}</b><br><span style="color:#6c757d; font-size:11px;">Peran: ${p.peran}</span></td>
-                <td class="text-right">Rp ${formatRp(p.tarif)}</td>
-                <td class="text-right" style="font-weight:bold;">Rp ${formatRp(p.jasa_medik)}</td>
-            </tr>`;
-        });
-        document.getElementById('bodyPasien').innerHTML = html || '<tr><td colspan="7" class="text-center">Tidak ada data.</td></tr>';
-        document.getElementById('sumPas').innerText = data.length + " Pasien";
-    }
-
-    function renderVariabel(data) {
-        let html = '';
-        data.forEach(row => {
-            let param = row[0] || "-"; let value = row[1] || "-"; let kriteria = row[2] || "";
-            html += `<tr>
-                <td style="width:30%;"><b>${param}</b></td>
-                <td style="width:20%; color:#004085; font-weight:bold;">${value}</td>
-                <td style="width:50%; color:#6c757d;">${kriteria}</td>
-            </tr>`;
-        });
-        document.getElementById('bodyVariabel').innerHTML = html || '<tr><td class="text-center">Tidak ada data variabel.</td></tr>';
-    }
-
-    // ==========================================
-    // FUNGSI COLD STORAGE (TAB 4)
-    // ==========================================
     async function muatDaftarArsip() {
         const tbody = document.getElementById('tabelArsipDrive');
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">⏳ Menghubungkan ke Google Drive...</td></tr>';
+        const barisLoading = '<tr><td colspan="3" class="text-center" style="padding: 30px; color: #666;">⏳ Memuat riwayat arsip dari Drive...</td></tr>';
         
+        // Cek apakah ini muat awal atau refresh
+        if(tbody.innerHTML.trim() === "") tbody.innerHTML = barisLoading;
+
         try {
             const response = await fetch(WEB_APP_URL, {
                 method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -322,29 +108,36 @@
             
             let html = "";
             if(res.data.length === 0) {
-                html = '<tr><td colspan="3" style="text-align:center; padding: 20px;">Belum ada file arsip tersimpan di Drive Anda.</td></tr>';
+                html = '<tr><td colspan="3" class="text-center" style="padding: 30px; color: #666;">Belum ada file arsip tersimpan di Drive Anda.</td></tr>';
             } else {
-                // Urutkan file terbaru di atas
+                // Tampilkan data, reverse() tidak diperlukan jika backend mengembalikannya berurutan, 
+                // tapi kita tambahkan untuk berjaga-jaga agar file terbaru di atas.
                 res.data.reverse().forEach(file => {
                     html += `<tr>
-                        <td><b style="color:#004085;">📄 ${file.nama}</b></td>
-                        <td>${file.dibuat}</td>
-                        <td class="text-center"><a href="${file.url}" target="_blank" class="btn-open">🔗 Buka di Tab Baru</a></td>
+                        <td><b style="color:#004085; font-size: 14px;">📄 ${file.nama}</b></td>
+                        <td style="color:#555;">${file.dibuat}</td>
+                        <td class="text-center"><a href="${file.url}" target="_blank" class="btn-open">🔗 Buka File</a></td>
                     </tr>`;
                 });
             }
             tbody.innerHTML = html;
-        } catch (e) { tbody.innerHTML = '<tr><td colspan="3" style="color:red; text-align:center; padding: 20px;">Gagal terhubung ke Google Drive.</td></tr>'; }
+        } catch (e) { 
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center" style="padding: 30px; color: red;">❌ Gagal terhubung ke Google Drive. Periksa koneksi internet Anda.</td></tr>'; 
+        }
     }
 
     async function eksekusiBackup() {
-        const per = document.getElementById('periodeInput').value;
-        if(!per) return alert("⚠️ Ketik periode terlebih dahulu (Misal: Januari 2026)");
+        const per = document.getElementById('periodeInput').value.trim();
+        if(!per) {
+            alert("⚠️ Ketik periode terlebih dahulu (Misal: Januari 2026)");
+            return;
+        }
         
-        if(!confirm(`⚠️ KONFIRMASI: Eksekusi File Backup Permanen\n\nSistem akan meng-kloning data ${per} ke file Spreadsheet baru dan MEMATIKAN SEMUA RUMUS. Proses ini butuh waktu 15-30 detik. Lanjutkan?`)) return;
+        if(!confirm(`⚠️ PERINGATAN KRUSIAL!\n\nSistem akan membackup data "${per}" ke Drive dan menghapus data pasien bulan tersebut dari file utama secara permanen.\n\nPastikan semua data sudah terinput dengan benar. Lanjutkan?`)) return;
 
         const btn = document.getElementById('btnRun');
-        btn.innerText = "⏳ Sedang Meng-Kloning Data..."; btn.disabled = true;
+        btn.innerText = "⏳ Sedang Memproses Backup..."; 
+        btn.disabled = true;
 
         try {
             const response = await fetch(WEB_APP_URL, {
@@ -353,61 +146,22 @@
             });
             const res = await response.json();
             
-            // PERBAIKAN BUG: Cek status success vs error
             if (res.status === "success") {
                 alert("✅ " + res.message);
-                document.getElementById('periodeInput').value = "";
-                muatDaftarArsip(); // Auto-refresh tabel Drive
+                document.getElementById('periodeInput').value = ""; // Kosongkan input
+                muatDaftarArsip(); // Segarkan tabel Drive
             } else {
                 alert("❌ GAGAL: " + res.message);
             }
             
         } catch (e) { 
-            alert("❌ Terjadi kesalahan saat memproses backup. Server sibuk."); 
+            alert("❌ Terjadi kesalahan saat memproses backup. Server Google mungkin sibuk, coba beberapa saat lagi."); 
         } finally { 
-            btn.innerText = "📁 Jalankan Backup Permanen Sekarang"; btn.disabled = false; 
+            btn.innerText = "📁 Eksekusi Backup & Purge Data"; 
+            btn.disabled = false; 
         }
     }
-
-    // ==========================================
-    // EXPORT DOWNLOAD KE LOCAL EXCEL 
-    // ==========================================
-    async function exportArsipExcel(event) {
-        if(!currentArsipData || !currentPeriode) return alert("Pilih periode arsip terlebih dahulu!");
-        const btn = event.target; const originalText = btn.innerText;
-        btn.innerText = "⏳ Sedang Menyusun Excel..."; btn.disabled = true;
-
-        try {
-            const workbook = new ExcelJS.Workbook(); workbook.creator = 'Sistem Jaspel RSUD';
-            
-            // Sheet 1 Karyawan
-            const ws1 = workbook.addWorksheet('Arsip_Karyawan');
-            ws1.getCell('A1').value = `ARSIP PENERIMAAN JASPEL KARYAWAN - PERIODE: ${currentPeriode.toUpperCase()}`;
-            ws1.mergeCells('A1:L1'); ws1.getCell('A1').font = { bold: true, size: 12 }; ws1.getCell('A1').alignment = { horizontal: 'center' };
-            ws1.getRow(3).values = ["NO", "NO REKENING", "NAMA KARYAWAN", "JABATAN", "PROD", "DISIPLIN", "PENGELOLA", "DOKTER", "PETUGAS", "TIM", "JTL", "TOTAL TERIMA"];
-            let r1 = 4;
-            currentArsipData.karyawan.forEach((k, i) => {
-                ws1.getRow(r1++).values = [ i+1, k.rekening, k.nama, k.jabatan, k.produktivitas, k.disiplin, k.pengelola, k.dokter, k.petugas, k.tim, k.jtl, k.total ];
-            });
-
-            // Sheet 2 Pasien
-            const ws2 = workbook.addWorksheet('Arsip_Pasien');
-            ws2.getCell('A1').value = `ARSIP RINCIAN PASIEN - PERIODE: ${currentPeriode.toUpperCase()}`;
-            ws2.mergeCells('A1:J1'); ws2.getCell('A1').font = { bold: true, size: 12 }; ws2.getCell('A1').alignment = { horizontal: 'center' };
-            ws2.getRow(3).values = ["NO", "TANGGAL", "NO RM", "NAMA PASIEN", "LAYANAN", "TIPE BAYAR", "DOKTER", "PERAN", "TARIF KLAIM", "JASA MEDIK"];
-            let r2 = 4;
-            currentArsipData.pasien.forEach((p, i) => {
-                let tgl = p.tanggal; try { if(tgl.length > 10) tgl = tgl.substring(0,10); } catch(e){}
-                ws2.getRow(r2++).values = [ i+1, tgl, p.rm, p.nama, p.layanan, p.pembayaran, p.dokter, p.peran, p.tarif, p.jasa_medik ];
-            });
-
-            // Trigger Download
-            const buffer = await workbook.xlsx.writeBuffer();
-            saveAs(new Blob([buffer]), `Arsip_Internal_Jaspel_${currentPeriode.replace(/\s+/g, '_')}.xlsx`);
-
-        } catch(e) { alert("Terjadi kesalahan saat menyusun Excel."); } 
-        finally { btn.innerText = originalText; btn.disabled = false; }
-    }
 </script>
+
 </body>
 </html>
