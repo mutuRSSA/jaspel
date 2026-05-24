@@ -172,7 +172,7 @@
     }
 
     // ==============================================================
-    // GENERATOR PDF (MENGGUNAKAN PERIODE DINAMIS)
+    // GENERATOR PDF (MENGGUNAKAN PERIODE DINAMIS & FILTER DOKTER)
     // ==============================================================
     function exportPDF_DPJP(event) {
         if(dataPasienLampiran.length === 0) { alert("Data kosong!"); return; }
@@ -180,11 +180,24 @@
 
         const periodeLaporan = document.getElementById('periodeLaporan').value || "Periode Terkini";
 
+        // 1. Daftar Dokter Penunjang yang akan di-filter out (tidak dimasukkan ke PDF)
+        const dokterPenunjang = [
+            "dr. bambang sasangka, sp. pk",
+            "dr. dianing pratiwi, m.med.sc., sp. pk",
+            "dr. andika setyawan, sp. rad"
+        ];
+
         let groupedDPJP = {};
+        
         dataPasienLampiran.forEach(p => {
             let namaDokter = p.dokter.trim();
             if(!namaDokter || namaDokter === "-") return;
-            if(namaDokter.toLowerCase().includes("dr.") || namaDokter.toLowerCase().includes("drg.")) {
+            
+            let namaDokterLower = namaDokter.toLowerCase();
+            
+            if (dokterPenunjang.includes(namaDokterLower)) return;
+
+            if(namaDokterLower.includes("dr.") || namaDokterLower.includes("drg.")) {
                 if(!groupedDPJP[namaDokter]) groupedDPJP[namaDokter] = { "RAWAT INAP": [], "RAWAT JALAN": [] };
                 if(groupedDPJP[namaDokter][p.layanan]) { groupedDPJP[namaDokter][p.layanan].push(p); }
             }
@@ -200,13 +213,24 @@
                 tableCell: { fontSize: 8, margin: [0, 3, 0, 3] },
                 tableCellCenter: { fontSize: 8, alignment: 'center', margin: [0, 3, 0, 3] },
                 tableCellRight: { fontSize: 8, alignment: 'right', margin: [0, 3, 0, 3] },
-                tableFooter: { bold: true, fontSize: 9, alignment: 'right', margin: [2, 4, 2, 4], fillColor: '#f8f9fa' }
+                tableFooter: { bold: true, fontSize: 9, alignment: 'right', margin: [2, 4, 2, 4], fillColor: '#f8f9fa' },
+                grandTotalInfo: { fontSize: 12, bold: true, margin: [0, 15, 0, 0], alignment: 'right', color: '#dc3545' }
             }, defaultStyle: { font: 'Roboto' }
         };
 
         let isFirstPage = true;
 
-        Object.keys(groupedDPJP).sort().forEach((dokter) => {
+        // PENGURUTAN KHUSUS: Spesialis ("Sp.") Lebih Dulu, Baru Dokter Umum
+        let sortedDokterList = Object.keys(groupedDPJP).sort((a, b) => {
+            let isSpesialisA = a.toLowerCase().includes("sp.");
+            let isSpesialisB = b.toLowerCase().includes("sp.");
+            
+            if (isSpesialisA && !isSpesialisB) return -1;
+            if (!isSpesialisA && isSpesialisB) return 1;
+            return a.localeCompare(b);
+        });
+
+        sortedDokterList.forEach((dokter) => {
             if (!isFirstPage) { docDefinition.content.push({ text: '', pageBreak: 'before' }); }
 
             docDefinition.content.push(
@@ -215,6 +239,8 @@
                 { text: `Nama Dokter : ${dokter}`, bold: true, fontSize: 10 },
                 { text: `Periode : Laporan ${periodeLaporan}`, fontSize: 9, margin: [0, 0, 0, 10] }
             );
+
+            let grandTotalSemuaJasa = 0; 
 
             ["RAWAT INAP", "RAWAT JALAN"].forEach(kat => {
                 let list = groupedDPJP[dokter][kat];
@@ -257,9 +283,22 @@
                     table: { headerRows: 1, widths: [15, 45, '*', 35, 35, 40, 50, 55], body: tableBody },
                     layout: 'lightHorizontalLines'
                 });
+                
+                grandTotalSemuaJasa += totalJasa;
             });
+
+            docDefinition.content.push(
+                { text: `GRAND TOTAL JASA PELAYANAN : Rp ${formatRpBulat(grandTotalSemuaJasa)}`, style: 'grandTotalInfo' }
+            );
+
             isFirstPage = false;
         });
+
+        if(docDefinition.content.length === 0) {
+            alert("⚠️ Tidak ada data dokter DPJP yang bisa dicetak.");
+            btn.innerText = "📄 Download Rincian DPJP (PDF)"; btn.disabled = false;
+            return;
+        }
 
         try { pdfMake.createPdf(docDefinition).download(`Rincian_DPJP_${periodeLaporan.replace(/\s+/g, '_')}.pdf`); } 
         catch (e) { alert("Gagal membuat PDF."); console.error(e); } 
@@ -267,7 +306,7 @@
     }
 
     // ==============================================================
-    // GENERATOR EXCEL (MENGGUNAKAN PERIODE DINAMIS)
+    // GENERATOR EXCEL DENGAN PENGURUTAN CUSTOM
     // ==============================================================
     async function exportSPJExcel(event) {
         if(dataFiltered.length === 0) { alert("Tidak ada data untuk diekspor!"); return; }
@@ -278,6 +317,30 @@
         try {
             const workbook = new ExcelJS.Workbook();
             workbook.clearThemes();
+
+            // LAKUKAN PENGURUTAN (SORTING) DATA: Pengelola -> Spesialis -> PNS -> Dokter Umum -> Lainnya
+            let dataForExcel = [...dataFiltered];
+            dataForExcel.sort((a, b) => {
+                let getRank = (k) => {
+                    let isPengelola = (k.pengelola > 0);
+                    let namaLower = String(k.nama).toLowerCase();
+                    let isSpesialis = namaLower.includes("sp.");
+                    let isDokterUmum = (namaLower.includes("dr.") || namaLower.includes("drg.")) && !isSpesialis;
+                    let isPNS = ["I", "II", "III", "IV"].includes(String(k.golongan).toUpperCase());
+
+                    if (isPengelola) return 1;    // Ranking 1: Direktur / Pengelola
+                    if (isSpesialis) return 2;    // Ranking 2: Dokter Spesialis
+                    if (isPNS) return 3;          // Ranking 3: PNS
+                    if (isDokterUmum) return 4;   // Ranking 4: Dokter Umum
+                    return 5;                     // Ranking 5: Karyawan Lainnya
+                };
+                
+                let rankA = getRank(a);
+                let rankB = getRank(b);
+                
+                if (rankA !== rankB) return rankA - rankB; // Urutkan berdasarkan rank
+                return String(a.nama).localeCompare(String(b.nama)); // Jika rank sama, urutkan abjad
+            });
 
             // ================= SHEET 1 =================
             const ws1 = workbook.addWorksheet('SPJ_Jaspel');
@@ -295,7 +358,7 @@
             ['A5:A6','B5:B6','C5:C6','D5:D6','E5:E6','F5:H5','I5:K5','L5:L6','M5:N5','O5:O6','P5:Q6'].forEach(range => ws1.mergeCells(range));
 
             let row1Index = 7;
-            dataFiltered.forEach((k, index) => {
+            dataForExcel.forEach((k, index) => {
                 let row = ws1.getRow(row1Index);
                 let isDokter = (k.nama.toLowerCase().includes("dr.") || k.nama.toLowerCase().includes("drg.")) ? "TRUE" : "FALSE";
                 row.getCell('A').value = index + 1; row.getCell('B').value = k.nama; row.getCell('C').value = k.jabatan;
@@ -358,7 +421,7 @@
             }
             ws2.getRow(5).values = ["NO", "NAMA KARYAWAN", "JABATAN", "JASA PENGELOLA", "JASA DOKTER", "JASA PETUGAS", "JASA TIM", "JASA TDK LANGSUNG", "TOTAL BRUTO"];
             let row2Index = 6; let sumP = 0, sumD = 0, sumPet = 0, sumT = 0, sumJ = 0, sumTot = 0;
-            dataFiltered.forEach((k, index) => {
+            dataForExcel.forEach((k, index) => {
                 ws2.getRow(row2Index).values = [ index + 1, k.nama, k.jabatan, k.pengelola || 0, k.dokter || 0, k.petugas || 0, k.tim || 0, k.jtl || 0, Math.round(k.total) ];
                 sumP += k.pengelola; sumD += k.dokter; sumPet += k.petugas; sumT += k.tim; sumJ += k.jtl; sumTot += k.total; row2Index++;
             });
@@ -449,7 +512,6 @@
         document.getElementById('footerTabel').innerHTML = '';
         
         try {
-            // Memanggil proses_backup_file yang sudah terintegrasi dengan Purging di Code.gs
             const response = await fetch(WEB_APP_URL, { 
                 method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, 
                 body: JSON.stringify({ action: "proses_backup_file", periode: periodeLaporan }) 
@@ -458,7 +520,7 @@
             
             if(res.status === "success") {
                 alert("✅ PROSES SELESAI!\n\n" + res.message);
-                loadData(); // Memuat ulang tabel (harusnya jadi kosong karena sudah terhapus)
+                loadData(); 
             } else {
                 alert("❌ Gagal: " + res.message);
                 loadData();
