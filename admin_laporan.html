@@ -304,7 +304,7 @@
     }
 
     // ==============================================================
-    // GENERATOR EXCEL DENGAN PENGURUTAN CUSTOM
+    // GENERATOR EXCEL DENGAN PENGURUTAN CUSTOM & PAJAK PINTAR
     // ==============================================================
     async function exportSPJExcel(event) {
         if(dataFiltered.length === 0) { alert("Tidak ada data untuk diekspor!"); return; }
@@ -336,8 +336,8 @@
                 let rankA = getRank(a);
                 let rankB = getRank(b);
                 
-                if (rankA !== rankB) return rankA - rankB; // Urutkan berdasarkan rank
-                return String(a.nama).localeCompare(String(b.nama)); // Jika rank sama, urutkan abjad
+                if (rankA !== rankB) return rankA - rankB; 
+                return String(a.nama).localeCompare(String(b.nama)); 
             });
 
             // ================= SHEET 1 =================
@@ -358,7 +358,11 @@
             let row1Index = 7;
             dataForExcel.forEach((k, index) => {
                 let row = ws1.getRow(row1Index);
-                let isDokter = (k.nama.toLowerCase().includes("dr.") || k.nama.toLowerCase().includes("drg.")) ? "TRUE" : "FALSE";
+                
+                // PERBAIKAN: Deteksi Dokter Pintar (Bisa membaca tanpa tanda titik)
+                let namaLower = String(k.nama).toLowerCase().trim();
+                let isDokter = (/^(dr\.|drg\.|dr |drg )/.test(namaLower) || namaLower.includes("dr.") || namaLower.includes("drg.")) ? "TRUE" : "FALSE";
+                
                 row.getCell('A').value = index + 1; row.getCell('B').value = k.nama; row.getCell('C').value = k.jabatan;
                 row.getCell('D').value = k.rekening; row.getCell('E').value = k.golongan;
                 row.getCell('F').value = 0.3; row.getCell('G').value = k.disiplin || 1; 
@@ -366,7 +370,10 @@
                 row.getCell('I').value = 0.7; row.getCell('J').value = k.produktivitas || 1;
                 row.getCell('K').value = { formula: `IF(((F${row1Index}*G${row1Index})+(I${row1Index}*J${row1Index}))=0, 0, ROUND(L${row1Index} * ((I${row1Index}*J${row1Index}) / ((F${row1Index}*G${row1Index}) + (I${row1Index}*J${row1Index}))), 0))` };
                 row.getCell('L').value = Math.round(k.total); 
+                
+                // Rumus Pajak Otomatis (Menggunakan isDokter yang sudah diperbaiki)
                 row.getCell('M').value = { formula: `IF(E${row1Index}="IV", ROUND(L${row1Index}*0.15, 0), IF(E${row1Index}="III", ROUND(L${row1Index}*0.05, 0), IF(E${row1Index}="Non-PNS", IF(${isDokter}, ROUND(L${row1Index}*0.025, 0), 0), 0)))` };
+                
                 row.getCell('N').value = 0; 
                 row.getCell('O').value = { formula: `L${row1Index}-M${row1Index}-N${row1Index}` }; 
                 if (index % 2 === 0) ws1.getCell(`P${row1Index}`).value = `${index + 1} ...................`; 
