@@ -72,8 +72,7 @@
     </div>
 
     <div class="alert-info">
-        💡 <b>Alur Kerja Baru:</b> Tarik Data ➔ Download SPJ Excel/PDF ➔ Klik <b>🔒 Finalisasi Laporan</b> untuk mengunci status menjadi 'Terbayarkan'. Setelah itu Anda bisa <b>🖨️ Cetak Slip Karyawan</b>.<br>
-        <i>(Proses Backup File Excel ke Google Drive dan Pembersihan Data Pasien sekarang dilakukan di menu Manajemen Arsip).</i>
+        💡 <b>Alur Kerja:</b> Tarik Data ➔ Download SPJ Excel/PDF ➔ Klik <b>🔒 Finalisasi Laporan</b> untuk mengunci status menjadi 'Terbayarkan'. Setelah itu Anda bisa <b>🖨️ Cetak Slip Karyawan</b>.
     </div>
 
     <table>
@@ -107,10 +106,12 @@
         document.getElementById('bodyTabel').innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 30px;">⏳ Sedang menghitung dan merekap data...</td></tr>';
         document.getElementById('footerTabel').innerHTML = '';
         
+        const periodeLaporan = document.getElementById('periodeLaporan').value || "Periode Terkini";
+
         try {
             const response = await fetch(WEB_APP_URL, { 
                 method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-                body: JSON.stringify({ action: "get_laporan_jaspel" }) 
+                body: JSON.stringify({ action: "get_laporan_jaspel", periode: periodeLaporan }) 
             });
             const res = await response.json();
             
@@ -118,6 +119,10 @@
                 dataJaspel = res.data;
                 dataPasienLampiran = res.pasien || [];
                 applyFilter();
+                
+                if(res.source === "arsip") {
+                    alert(`Data Jaspel untuk periode [${periodeLaporan}] diambil dari ARSIP (Sudah Finalisasi).`);
+                }
             } else { alert("Error: " + res.message); }
         } catch (e) {
             document.getElementById('bodyTabel').innerHTML = '<tr><td colspan="7" style="color:red; text-align:center;">Gagal memuat data. Cek koneksi.</td></tr>';
@@ -143,7 +148,7 @@
         let gPengelola = 0, gDokter = 0, gPetugas = 0, gTim = 0, gJtl = 0, gTotal = 0;
 
         if (dataFiltered.length === 0) { 
-            html = '<tr><td colspan="7" style="text-align:center; padding: 30px;">Tidak ada data yang sesuai filter / Data periode ini sudah dikunci (kosong).</td></tr>'; 
+            html = '<tr><td colspan="7" style="text-align:center; padding: 30px;">Tidak ada data yang sesuai kriteria filter.</td></tr>'; 
         } else {
             dataFiltered.forEach(k => {
                 gPengelola += k.pengelola; gDokter += k.dokter; gPetugas += k.petugas; 
@@ -300,7 +305,7 @@
 
         try { pdfMake.createPdf(docDefinition).download(`Rincian_DPJP_${periodeLaporan.replace(/\s+/g, '_')}.pdf`); } 
         catch (e) { alert("Gagal membuat PDF."); } 
-        finally { btn.innerText = "📄 Download Rincian DPJP (PDF)"; btn.disabled = false; }
+        finally { btn.innerText = "📄 Rincian DPJP (PDF)"; btn.disabled = false; }
     }
 
     // ==============================================================
@@ -391,7 +396,6 @@
                 row1Index++;
             });
 
-            // PENAMBAHAN: Baris Grand Total di bawah SPJ
             ws1.mergeCells(`A${row1Index}:G${row1Index}`);
             let grandTotalRow = ws1.getRow(row1Index);
             grandTotalRow.getCell('A').value = "GRAND TOTAL";
@@ -405,7 +409,6 @@
                 cell.numFmt = '#,##0';
             });
             
-            // Format Borders untuk semua baris (termasuk Grand Total)
             for(let r = 5; r <= row1Index; r++) {
                 let row = ws1.getRow(r);
                 row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
@@ -414,7 +417,7 @@
                             cell.font = { name: 'Arial', size: 12, bold: true }; 
                             cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; 
                         } else {
-                            if(r !== row1Index) cell.alignment = { vertical: 'middle' }; // Bukan baris Grand Total
+                            if(r !== row1Index) cell.alignment = { vertical: 'middle' }; 
                             if([8, 11, 12, 13, 14, 15].includes(colNumber) && r !== row1Index) cell.numFmt = '#,##0'; 
                             if([1, 5, 6, 7, 9, 10].includes(colNumber) && r !== row1Index) cell.alignment = { horizontal: 'center', vertical: 'middle' };
                         }
@@ -423,7 +426,7 @@
                 });
             }
 
-            row1Index++; // Menurunkan posisi tanda tangan
+            row1Index++; 
             let sigRow = row1Index + 3; 
             ws1.getCell(`B${sigRow}`).value = "Mengetahui,"; ws1.getCell(`B${sigRow + 1}`).value = "Direktur RSUD Saras Adyatma";
             ws1.getCell(`B${sigRow + 5}`).value = "drg. TRI WAHYUNI, MPH"; ws1.getCell(`B${sigRow + 6}`).value = "NIP 198407112009032010";
@@ -641,7 +644,7 @@
                 }
             }
 
-            alert(`✅ PENCETAKAN SELESAI!\n\nBerhasil: ${sukses} slip\nGagal: ${gagal} slip\n\nSilakan buka Google Drive untuk melihat file PDF yang telah jadi di dalam folder ${periodeLaporan}.`);
+            alert(`✅ PENCETAKAN SELESAI!\n\nBerhasil: ${sukses} slip\nGagal: ${gagal} slip\n\nSilakan buka Google Drive (Folder Slip) untuk melihat file PDF yang telah jadi di dalam folder ${periodeLaporan}.`);
 
         } catch (e) {
             alert("❌ Terjadi kesalahan koneksi saat memproses pencetakan slip PDF.");
