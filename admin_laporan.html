@@ -21,12 +21,16 @@
         .row-total { background: #e9ecef; font-weight: bold; color: #004085; font-size: 14px; }
         .row-total td { border-top: 2px solid #ccc; }
         .col-total { font-weight: bold; color: #dc3545; }
-        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; transition: 0.2s;}
+        
+        .btn { padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; transition: 0.2s;}
         .btn-refresh { background: #007bff; color: white; }
         .btn-excel { background: #28a745; color: white; }
         .btn-pdf { background: #dc3545; color: white; }
+        .btn-slip { background: #6f42c1; color: white; }
         .btn-backup { background: #ffc107; color: #333; }
         .btn-backup:hover { background: #e0a800; }
+        
+        .alert-info { background: #d1ecf1; color: #0c5460; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; border: 1px solid #bee5eb; line-height: 1.5; }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -43,11 +47,12 @@
 <div class="card">
     <div class="header">
         <h2 class="header-title">📊 Rekapitulasi Final Jaspel Karyawan</h2>
-        <div style="display:flex; gap: 8px;">
+        <div style="display:flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
             <button class="btn btn-refresh" onclick="loadData()">🔄 Tarik Data</button>
             <button class="btn btn-excel" onclick="exportSPJExcel(event)">📥 Download SPJ (Excel)</button>
-            <button class="btn btn-pdf" onclick="exportPDF_DPJP(event)">📄 Download Rincian DPJP (PDF)</button>
-            <button class="btn btn-backup" onclick="arsipkanLaporan()">📁 Finalisasi & Backup (Drive)</button>
+            <button class="btn btn-pdf" onclick="exportPDF_DPJP(event)">📄 Rincian DPJP (PDF)</button>
+            <button class="btn btn-backup" onclick="finalisasiLaporan()">🔒 Finalisasi Laporan</button>
+            <button class="btn btn-slip" onclick="cetakSlipKaryawan(event)">🖨️ Cetak Slip Karyawan</button>
         </div>
     </div>
 
@@ -66,8 +71,9 @@
         </div>
     </div>
 
-    <div style="background: #d1ecf1; color: #0c5460; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 13px; border: 1px solid #bee5eb;">
-        💡 <b>Alur Kerja:</b> Tarik Data ➔ Cek Kesesuaian ➔ Download Excel/PDF ➔ Klik <b>Finalisasi & Backup (Drive)</b> untuk membekukan data dan menyapu bersih database bulan ini.
+    <div class="alert-info">
+        💡 <b>Alur Kerja Baru:</b> Tarik Data ➔ Download SPJ Excel/PDF ➔ Klik <b>🔒 Finalisasi Laporan</b> untuk mengunci status menjadi 'Terbayarkan'. Setelah itu Anda bisa <b>🖨️ Cetak Slip Karyawan</b>.<br>
+        <i>(Proses Backup File Excel ke Google Drive dan Pembersihan Data Pasien sekarang dilakukan di menu Manajemen Arsip).</i>
     </div>
 
     <table>
@@ -137,7 +143,7 @@
         let gPengelola = 0, gDokter = 0, gPetugas = 0, gTim = 0, gJtl = 0, gTotal = 0;
 
         if (dataFiltered.length === 0) { 
-            html = '<tr><td colspan="7" style="text-align:center; padding: 30px;">Tidak ada data yang sesuai filter / Data periode ini sudah dibackup (kosong).</td></tr>'; 
+            html = '<tr><td colspan="7" style="text-align:center; padding: 30px;">Tidak ada data yang sesuai filter / Data periode ini sudah dikunci (kosong).</td></tr>'; 
         } else {
             dataFiltered.forEach(k => {
                 gPengelola += k.pengelola; gDokter += k.dokter; gPetugas += k.petugas; 
@@ -172,7 +178,7 @@
     }
 
     // ==============================================================
-    // GENERATOR PDF (MENGGUNAKAN PERIODE DINAMIS & FILTER DOKTER)
+    // GENERATOR PDF DPJP (DIURUTKAN SPESIALIS DULU)
     // ==============================================================
     function exportPDF_DPJP(event) {
         if(dataPasienLampiran.length === 0) { alert("Data kosong!"); return; }
@@ -180,7 +186,6 @@
 
         const periodeLaporan = document.getElementById('periodeLaporan').value || "Periode Terkini";
 
-        // Daftar Dokter Penunjang untuk di-exclude
         const dokterPenunjang = [
             "dr. bambang sasangka, sp. pk",
             "dr. dianing pratiwi, m.med.sc., sp. pk",
@@ -194,13 +199,9 @@
             if(!namaDokter || namaDokter === "-") return;
             
             let namaDokterLower = namaDokter.toLowerCase();
-            
-            // Filter Dokter Penunjang
             if (dokterPenunjang.includes(namaDokterLower)) return;
 
-            // Regex fleksibel: Mencari dr/drg yang diikuti titik, spasi, atau langsung nama
-            const isDokterValid = /^(dr\.|drg\.|dr |drg )/.test(namaDokterLower) || 
-                                  namaDokterLower.startsWith("dr ");
+            const isDokterValid = /^(dr\.|drg\.|dr |drg )/.test(namaDokterLower) || namaDokterLower.startsWith("dr ");
 
             if(isDokterValid || namaDokterLower.includes("dr.") || namaDokterLower.includes("drg.")) {
                 if(!groupedDPJP[namaDokter]) groupedDPJP[namaDokter] = { "RAWAT INAP": [], "RAWAT JALAN": [] };
@@ -224,7 +225,6 @@
 
         let isFirstPage = true;
 
-        // PENGURUTAN: Spesialis ("Sp.") > Umum
         let sortedDokterList = Object.keys(groupedDPJP).sort((a, b) => {
             let isSpesialisA = a.toLowerCase().includes("sp.");
             let isSpesialisB = b.toLowerCase().includes("sp.");
@@ -316,7 +316,6 @@
             const workbook = new ExcelJS.Workbook();
             workbook.clearThemes();
 
-            // LAKUKAN PENGURUTAN (SORTING) DATA: Pengelola -> Spesialis -> PNS -> Dokter Umum -> Lainnya
             let dataForExcel = [...dataFiltered];
             dataForExcel.sort((a, b) => {
                 let getRank = (k) => {
@@ -326,11 +325,11 @@
                     let isDokterUmum = (namaLower.includes("dr.") || namaLower.includes("drg.")) && !isSpesialis;
                     let isPNS = ["I", "II", "III", "IV"].includes(String(k.golongan).toUpperCase());
 
-                    if (isPengelola) return 1;    // Ranking 1: Direktur / Pengelola
-                    if (isSpesialis) return 2;    // Ranking 2: Dokter Spesialis
-                    if (isPNS) return 3;          // Ranking 3: PNS
-                    if (isDokterUmum) return 4;   // Ranking 4: Dokter Umum
-                    return 5;                     // Ranking 5: Karyawan Lainnya
+                    if (isPengelola) return 1;    
+                    if (isSpesialis) return 2;    
+                    if (isPNS) return 3;          
+                    if (isDokterUmum) return 4;   
+                    return 5;                     
                 };
                 
                 let rankA = getRank(a);
@@ -340,7 +339,6 @@
                 return String(a.nama).localeCompare(String(b.nama)); 
             });
 
-            // ================= SHEET 1 =================
             const ws1 = workbook.addWorksheet('SPJ_Jaspel');
             ws1.getCell('A1').value = "DAFTAR PENERIMAAN INSENTIF JASA PELAYANAN";
             ws1.getCell('A2').value = "RUMAH SAKIT UMUM DAERAH SARAS ADYATMA"; 
@@ -359,7 +357,6 @@
             dataForExcel.forEach((k, index) => {
                 let row = ws1.getRow(row1Index);
                 
-                // PERBAIKAN: Deteksi Dokter Pintar (Bisa membaca tanpa tanda titik)
                 let namaLower = String(k.nama).toLowerCase().trim();
                 let isDokter = (/^(dr\.|drg\.|dr |drg )/.test(namaLower) || namaLower.includes("dr.") || namaLower.includes("drg.")) ? "TRUE" : "FALSE";
                 
@@ -371,7 +368,6 @@
                 row.getCell('K').value = { formula: `IF(((F${row1Index}*G${row1Index})+(I${row1Index}*J${row1Index}))=0, 0, ROUND(L${row1Index} * ((I${row1Index}*J${row1Index}) / ((F${row1Index}*G${row1Index}) + (I${row1Index}*J${row1Index}))), 0))` };
                 row.getCell('L').value = Math.round(k.total); 
                 
-                // Rumus Pajak Otomatis (Menggunakan isDokter yang sudah diperbaiki)
                 row.getCell('M').value = { formula: `IF(E${row1Index}="IV", ROUND(L${row1Index}*0.15, 0), IF(E${row1Index}="III", ROUND(L${row1Index}*0.05, 0), IF(E${row1Index}="Non-PNS", IF(${isDokter}, ROUND(L${row1Index}*0.025, 0), 0), 0)))` };
                 
                 row.getCell('N').value = 0; 
@@ -446,49 +442,6 @@
             }
             ws2.columns = [{ width: 6 }, { width: 35 }, { width: 25 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 22 }, { width: 22 }];
 
-            // ================= SHEET 3 =================
-            const ws3 = workbook.addWorksheet('Daftar_Pasien');
-            ws3.getCell('A1').value = "LAMPIRAN DAFTAR PASIEN JASA PELAYANAN";
-            ws3.getCell('A2').value = `PERIODE PELAYANAN: ${periodeLaporan.toUpperCase()}`;
-            for(let i=1; i<=2; i++) {
-                ws3.mergeCells(`A${i}:G${i}`);
-                ws3.getCell(`A${i}`).font = { name: 'Arial', size: 12, bold: true };
-                ws3.getCell(`A${i}`).alignment = { horizontal: 'center', vertical: 'middle' };
-            }
-            ws3.getRow(4).values = ["NO", "LAYANAN/UNIT", "NO RM", "NAMA PASIEN", "DOKTER DPJP / PEMERIKSA", "STATUS KLAIM", "TARIF KLAIM (Rp)"];
-            
-            let row3Index = 5; let totalTarifSheet3 = 0;
-            dataPasienLampiran.forEach((p, index) => {
-                ws3.getRow(row3Index).values = [ index + 1, p.layanan, p.rm, p.nama, p.dokter, p.status_klaim.toUpperCase(), p.tarif ];
-                totalTarifSheet3 += p.tarif; row3Index++;
-            });
-            ws3.getRow(row3Index).values = [null, "TOTAL TARIF", null, null, null, null, totalTarifSheet3];
-            ws3.mergeCells(`A${row3Index}:F${row3Index}`);
-
-            for(let r = 4; r <= row3Index; r++) {
-                ws3.getRow(r).eachCell({ includeEmpty: true }, (cell, colNumber) => {
-                    if(colNumber <= 7) { 
-                        cell.font = { name: 'Arial', size: 11, bold: (r === 4 || r === row3Index) }; 
-                        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-                        cell.alignment = { vertical: 'middle' };
-                        
-                        if(r === 4) cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                        else {
-                            if(colNumber === 7) cell.numFmt = '#,##0'; 
-                            if(colNumber === 1 || colNumber === 3 || colNumber === 6) cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                            
-                            if(colNumber === 6 && r !== row3Index) {
-                                let valStatus = cell.value;
-                                if(valStatus === "LUNAS" || valStatus === "SELESAI" || valStatus === "DISETUJUI") cell.font = { color: { argb: 'FF008000' } }; 
-                                else cell.font = { color: { argb: 'FFFF0000' } }; 
-                            }
-                        }
-                        if(r === row3Index && colNumber === 1) cell.alignment = { horizontal: 'right', vertical: 'middle' }; 
-                    }
-                });
-            }
-            ws3.columns = [{ width: 6 }, { width: 20 }, { width: 15 }, { width: 35 }, { width: 35 }, { width: 18 }, { width: 22 }];
-
             const buffer = await workbook.xlsx.writeBuffer();
             saveAs(new Blob([buffer]), `SPJ_Jaspel_${periodeLaporan.replace(/\s+/g, '_')}.xlsx`);
 
@@ -500,26 +453,27 @@
     }
 
     // ==============================================================
-    // FUNGSI TRIGGER BACKUP COLD STORAGE & PURGING
+    // FUNGSI FINALISASI LAPORAN (KUNCI DATA TANPA HAPUS)
     // ==============================================================
-    async function arsipkanLaporan() {
+    async function finalisasiLaporan() {
         const periodeLaporan = document.getElementById('periodeLaporan').value || "Periode Terkini";
         
-        let konfirmasi = confirm(`⚠️ PERINGATAN FINALISASI & BACKUP!\n\nApakah Anda yakin ingin memproses Jaspel periode [${periodeLaporan}]?\n\nSistem akan:\n1. Membuat file Spreadsheet Arsip Permanen di Google Drive.\n2. MENGHAPUS data pasien bulan ini dari Database Utama agar sistem kembali ringan.\n\nPastikan Anda sudah mendownload SPJ Excel / PDF. Lanjutkan?`);
+        let konfirmasi = confirm(`⚠️ PERINGATAN FINALISASI!\n\nApakah Anda yakin ingin MENGUNCI Jaspel periode [${periodeLaporan}]?\n\nSistem akan:\n1. Mengubah status pasien menjadi 'Terbayarkan'.\n2. Menyimpan rekap internal untuk keperluan Cetak Slip Karyawan.\n\n(Data pasien TIDAK AKAN dihapus sampai Anda melakukan Backup ke Drive di menu Manajemen Arsip). Lanjutkan?`);
         
         if(!konfirmasi) return;
 
         document.getElementById('bodyTabel').innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 40px; color:#004085; font-size:16px;">
-            ⏳ <b>Sedang Memproses...</b><br><br>
-            Sistem sedang mengkloning data ke Google Drive dan menyapu bersih database utama.<br>
-            Tunggu sekitar 10 - 20 detik dan <b>JANGAN</b> menutup halaman ini.
+            ⏳ <b>Sedang Memproses Finalisasi...</b><br><br>
+            Sistem sedang mengunci data pasien dan menyusun rekap untuk Slip Gaji.<br>
+            Tunggu sekitar 5 - 10 detik.
         </td></tr>`;
         document.getElementById('footerTabel').innerHTML = '';
         
         try {
+            // Memanggil action arsipkan_laporan yang HANYA mengunci status jadi 'Terbayarkan' dan simpan ke Arsip internal
             const response = await fetch(WEB_APP_URL, { 
                 method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-                body: JSON.stringify({ action: "proses_backup_file", periode: periodeLaporan }) 
+                body: JSON.stringify({ action: "arsipkan_laporan", periode: periodeLaporan }) 
             });
             const res = await response.json();
             
@@ -531,8 +485,42 @@
                 loadData();
             }
         } catch (e) {
-            alert("❌ Terjadi kesalahan koneksi saat memproses backup. Coba beberapa saat lagi.");
+            alert("❌ Terjadi kesalahan koneksi saat memproses finalisasi. Coba beberapa saat lagi.");
             loadData();
+        }
+    }
+
+    // ==============================================================
+    // FUNGSI CETAK SLIP KARYAWAN (PDF) DARI DATA ARSIP INTERNAL
+    // ==============================================================
+    async function cetakSlipKaryawan(event) {
+        const periodeLaporan = document.getElementById('periodeLaporan').value || "Periode Terkini";
+        
+        let konfirmasi = confirm(`🖨️ Cetak Slip Karyawan?\n\nSistem akan men-generate dokumen PDF Slip Jaspel untuk periode [${periodeLaporan}].\n\nPastikan Anda SUDAH melakukan klik "Finalisasi Laporan" terlebih dahulu agar data slip tersedia. Lanjutkan?`);
+        if(!konfirmasi) return;
+
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = "⏳ Sedang Mencetak Slip..."; 
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(WEB_APP_URL, { 
+                method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+                body: JSON.stringify({ action: "cetak_pdf", periode: periodeLaporan }) 
+            });
+            const res = await response.json();
+            
+            if(res.status === "success") {
+                alert("✅ PENCETAKAN BERHASIL!\n\n" + res.message + "\n\nSilakan buka Google Drive (Folder Slip) untuk melihat file PDF yang telah jadi.");
+            } else {
+                alert("❌ Gagal: " + res.message);
+            }
+        } catch (e) {
+            alert("❌ Terjadi kesalahan koneksi saat memproses pencetakan slip PDF.");
+        } finally {
+            btn.innerText = originalText; 
+            btn.disabled = false;
         }
     }
 </script>
