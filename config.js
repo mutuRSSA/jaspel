@@ -4,7 +4,7 @@
  * =========================================================================
  */
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbznrD5-Z0EN-nXJpKt7yIUCRj9XcEvLARC2nL5-30IqXK5yad_1nOGHcVXGC2I_NVig/exec"; 
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzTT0Bn3ILId_vjS_vZxysnyqthlrEAbVIbfwlqrIVkBsSbaxhVMMSgwQJyJjnGbjXM/exec"; 
 
 function renderNavbar() {
     let currentRole = localStorage.getItem("userRole") || "operator";
