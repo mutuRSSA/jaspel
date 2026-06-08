@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Universal Uploader Jaspel</title>
+    <script src="config.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f3f4f6; padding: 20px; margin: 0; color: #1f2937; }
+        .header { margin-bottom: 25px; }
+        h2 { margin: 0; color: #1e3a8a; font-weight: 700; }
+        .subtitle { color: #6b7280; font-size: 14px; margin-top: 5px; }
+        .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .dropzone { border: 2px dashed #3b82f6; border-radius: 12px; padding: 40px 20px; text-align: center; background: #eff6ff; cursor: pointer; transition: all 0.3s;}
+        .dropzone.dragover { background: #dbeafe; border-color: #2563eb; transform: scale(1.02); }
+        .dropzone-icon { font-size: 40px; margin-bottom: 10px; }
+        .dropzone-text { font-size: 16px; color: #1e40af; font-weight: bold; margin-bottom: 10px; }
+        .dropzone-subtext { font-size: 13px; color: #6b7280; }
+        .source-control { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; }
+        select { padding: 10px 15px; border-radius: 8px; border: 1px solid #d1d5db; font-weight: 600; outline: none; flex: 1; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .staging-area { display: none; margin-top: 30px; }
+        .summary-boxes { display: flex; gap: 20px; margin-bottom: 20px;}
+        .sum-box { flex: 1; padding: 15px; border-radius: 8px; border-left: 5px solid #ccc; background: #f9fafb;}
+        .sum-box.bpjs { border-left-color: #10b981; }
+        .sum-box.umum { border-left-color: #f59e0b; }
+        .table-wrapper { overflow-x: auto; max-height: 400px; border: 1px solid #e5e7eb; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #1f2937; color: white; padding: 12px; text-align: left; position: sticky; top: 0; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; }
+        tr:hover { background: #f9fafb; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-purple { background: #e0e7ff; color: #1e40af; }
+        #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); z-index: 1000; display: none; flex-direction: column; justify-content: center; align-items: center; font-size: 22px; font-weight: 700; color: #3b82f6; backdrop-filter: blur(4px);}
+    </style>
+</head>
+<body>
+<script>
+    if (!localStorage.getItem("userRole")) window.location.href = "login.html";
+</script>
+<script>renderNavbar();</script> 
+
+<div id="loadingOverlay">
+    <div style="font-size: 40px; margin-bottom: 10px;">🚀</div>
+    <div id="loadingText">Sedang Mengirim Data ke Database...</div>
+</div>
+
+<div class="header">
+    <h2>📥 Universal Uploader Jaspel</h2>
+    <div class="subtitle">Upload Laporan Kasir atau Rekap Pendapatan. Sistem otomatis merapikan format dan mensinkronkan database.</div>
+</div>
+
+<div class="card">
+    <div class="source-control">
+        <label style="font-weight: bold; color: #374151;">Pilih Format File yang Diupload:</label>
+        <select id="pilihanSumber" onchange="resetLayar()">
+            <option value="kasir_rajal">🗂️ Laporan Kasir Rawat Jalan (Auto-Split UMUM & BPJS)</option>
+            <option value="rincian_pendapatan">💰 Rincian Pendapatan (Multi-Sheet: BPJS, JKK, Jamkesda)</option>
+        </select>
+    </div>
+
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        <div class="dropzone-icon">📁</div>
+        <div class="dropzone-text">Klik atau Tarik File Laporan Excel Sini</div>
+        <div class="dropzone-subtext">Sistem dilengkapi Identifikasi Jenis Bayar & Filter UMUM</div>
+        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileSelect(event)">
+    </div>
+</div>
+
+<div class="card staging-area" id="stagingArea">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0; color: #111827;">🔍 Pratinjau Pembersihan & Sinkronisasi</h3>
+        <button class="btn btn-success" id="btnSimpan" onclick="simpanKeDatabase()">Mulai Eksekusi Database 🚀</button>
+    </div>
+    
+    <div class="summary-boxes" id="boxKasir">
+        <div class="sum-box umum">
+            <div style="font-weight: bold; color: #d97706;">Antrean DB_Rajal_Umum</div>
+            <div id="countUmum" style="font-size: 24px; font-weight: bold;">0 Pasien</div>
+        </div>
+        <div class="sum-box bpjs">
+            <div style="font-weight: bold; color: #059669;">Antrean DB_Rajal_BPJS</div>
+            <div id="countBPJS" style="font-size: 24px; font-weight: bold;">0 Pasien</div>
+        </div>
+    </div>
+
+    <div class="summary-boxes" id="boxSync" style="display: none;">
+        <div class="sum-box" style="border-left-color: #3b82f6;">
+            <div style="font-weight: bold; color: #1d4ed8;">Data Tersinkronisasi (Multi-DB)</div>
+            <div id="countSync" style="font-size: 24px; font-weight: bold;">0 Pasien</div>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="previewTable">
+            <thead id="previewHead"></thead>
+            <tbody id="previewBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const dropzone = document.getElementById('dropzone');
+    let payloadUmum = []; let payloadBPJS = []; let payloadSync = []; let previewHtml = "";
+
+    function resetLayar() { document.getElementById('stagingArea').style.display = 'none'; payloadUmum = []; payloadBPJS = []; payloadSync = []; }
+
+    function formatTanggalExcel(val) {
+        if(!val) return "";
+        if (typeof val === 'number') {
+            let date = new Date(Math.round((val - 25569)*86400*1000));
+            return date.toISOString().split('T')[0];
+        }
+        return String(val).trim();
+    }
+
+    function formatRM(rm) {
+        let str = String(rm).trim();
+        if(!str || str === "" || str === "undefined") return "";
+        if (str.includes('#')) return str; 
+        str = str.replace(/[^0-9]/g, ''); 
+        if (str.length === 0) return "";
+        return str.padStart(6, '0'); 
+    }
+
+    function normalisasiNamaDokter(namaMentah) {
+        if (!namaMentah || String(namaMentah).trim() === "") return "-";
+        let strVal = String(namaMentah).trim().toUpperCase();
+        if (strVal.includes("ALVIAN") || strVal.includes("FAHMY") || strVal.includes("ALFIAN")) return "dr Alfian Fahmy, Sp.B";
+        if (strVal.includes("LILIK")) return "dr. Lilik Eko Pranantyo, Sp PD";
+        if (strVal.includes("PUSPITA")) return "dr. Puspita Sari, Sp. OG";
+        if (strVal.includes("WENY")) return "dr. Weny Inrianto, M.Sc, Sp.A";
+        if (strVal.includes("DEWI HAYU")) return "dr. Dewi Hayu Kirana, Sp.N";
+        if (strVal.includes("BAMBANG")) return "dr. Bambang Sasangka, Sp. PK";
+        if (strVal.includes("ANDIKA")) return "dr. Andika Setyawan, Sp. Rad";
+        if (strVal.includes("DIANING")) return "dr. Dianing Pratiwi, M.Med.Sc., Sp. PK";
+        if (strVal.includes("NURUL") || strVal.includes("KHAFIDZ")) return "dr. Nurul Khafidz Subekti";
+        if (strVal.includes("GERDA")) return "dr. Gerda Bina Larasati";
+        if (strVal.includes("MIRDZA")) return "dr. Muhammad Mirdza";
+        if (strVal.includes("DYAH") || strVal.includes("CHANDRA")) return "dr. Dyah Chandra Suwastiko Putri";
+        if (strVal.includes("HENDRISA")) return "dr. Hendrisa Heppy Natalina";
+        if (strVal.includes("TRI WIDJAJA")) return "dr. Tri Widjaja";
+        if (strVal.includes("HUSNI") || strVal.includes("MUARIF")) return "dr. Husni Muarif";
+        if (strVal.includes("ARIF") || strVal.includes("SETYO")) return "dr Arif Setyo Wibowo, Sp.An.TI";
+        if (strVal.includes("KRISWAHYU") || strVal.includes("YUDO") || strVal.includes("WIRAWAN")) return "dr. Kriswahyu Yudo Wirawan";
+        if (strVal.includes("IRAWAN") || strVal === "UGD") return "dr. Irawan Jati Asmara";
+        if (strVal.includes("GUNTUR") || strVal.includes("LABIBBASIL")) return "Guntur Labibbasil Al Rai S.Ftr.";
+        let kata = String(namaMentah).toLowerCase().trim().split(/\s+/);
+        for (let i = 0; i < kata.length; i++) kata[i] = kata[i].charAt(0).toUpperCase() + kata[i].slice(1);
+        let hasil = kata.join(" ");
+        hasil = hasil.replace(/^Dr\s+/i, "dr. ").replace(/^Dr\.\s*/i, "dr. ");
+        hasil = hasil.replace(/^Drg\s+/i, "drg. ").replace(/^Drg\.\s*/i, "drg. ");
+        hasil = hasil.replace(/Sp\.([a-zA-Z]+)/g, function(match, gelar) { return "Sp." + gelar.toUpperCase(); });
+        return hasil.trim();
+    }
+
+    function ekstrakDPJPPintar(rowArray) {
+        for(let k = 13; k <= 18; k++) {
+            let val = String(rowArray[k] || "").trim();
+            if(val !== "" && isNaN(val) && !val.includes("#N/A")) {
+                let vUp = val.toUpperCase();
+                if(vUp !== "DISETUJUI" && vUp !== "PENDING" && !vUp.includes("PAID") && vUp !== "RJ" && vUp !== "RI") {
+                    return normalisasiNamaDokter(val);
+                }
+            }
+        }
+        return "-";
+    }
+
+    const formatRp = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(angka) || 0);
+
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); if (e.dataTransfer.files.length) prosesFileExcel(e.dataTransfer.files[0]); });
+    function handleFileSelect(event) { if (event.target.files.length) prosesFileExcel(event.target.files[0]); }
+
+    function prosesFileExcel(file) {
+        const tipeData = document.getElementById('pilihanSumber').value;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            if (tipeData === "kasir_rajal") logicKasirRajal(workbook);
+            else if (tipeData === "rincian_pendapatan") logicRincianPendapatan(workbook);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function logicKasirRajal(workbook) {
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonSheet = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ""}); 
+        if(jsonSheet.length < 3) return alert("File kosong atau format salah!");
+        payloadUmum = []; payloadBPJS = []; previewHtml = ""; let limitPreview = 0;
+
+        document.getElementById('previewHead').innerHTML = "<tr><th>Tujuan DB</th><th>Tanggal</th><th>No RM</th><th>Nama Pasien</th><th>Dokter</th><th>Jenis Kasus</th><th>Pembayaran</th></tr>";
+
+        for (let i = 2; i < jsonSheet.length; i++) {
+            let row = jsonSheet[i];
+            let rm = formatRM(row[3]); if (!rm || rm === "") continue; 
+            let tanggal = formatTanggalExcel(row[1]); let noTrans = row[2]; let nama = row[4];
+            let dokter = normalisasiNamaDokter(row[9]); let jenisKasus = "Non Operasi"; 
+            let jenisPasien = String(row[10]).toUpperCase().trim();
+            
+            let labSarana = Number(row[16])||0; let radSarana = Number(row[19])||0;
+            let isBPJS = ["BPJS", "BPJS KETENAGAKERJAAN", "JAMKESDA"].includes(jenisPasien);
+
+            if (isBPJS) {
+                let barisBPJS = new Array(29).fill("");
+                barisBPJS[1] = tanggal; barisBPJS[2] = "'" + rm; barisBPJS[3] = nama; barisBPJS[4] = jenisKasus; 
+                barisBPJS[5] = dokter; barisBPJS[9] = labSarana > 0 ? "Ya" : "Tidak"; barisBPJS[10] = radSarana > 0 ? "Ya" : "Tidak"; barisBPJS[12] = jenisPasien; 
+                payloadBPJS.push(barisBPJS);
+                if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-green">BPJS</span></td><td>${tanggal}</td><td style="font-family:monospace;">${rm}</td><td>${nama}</td><td>${dokter}</td><td>${jenisKasus}</td><td>${jenisPasien}</td></tr>`;
+            } else {
+                let barisUmum = new Array(38).fill("");
+                barisUmum[1] = tanggal; barisUmum[2] = noTrans; barisUmum[3] = "'" + rm; barisUmum[4] = nama; 
+                barisUmum[6] = dokter; barisUmum[7] = jenisKasus; barisUmum[11] = jenisPasien;
+                barisUmum[13] = Number(row[12])||0; barisUmum[14] = Number(row[13])||0; barisUmum[15] = Number(row[14])||0; barisUmum[16] = Number(row[15])||0;
+                barisUmum[17] = labSarana; barisUmum[18] = (Number(row[17])||0) + (Number(row[18])||0); 
+                barisUmum[19] = radSarana; barisUmum[20] = (Number(row[20])||0) + (Number(row[21])||0);
+                barisUmum[21] = Number(row[22])||0; barisUmum[22] = Number(row[23])||0;
+                payloadUmum.push(barisUmum);
+                if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge" style="background:#fef3c7; color:#92400e;">UMUM</span></td><td>${tanggal}</td><td style="font-family:monospace;">${rm}</td><td>${nama}</td><td>${dokter}</td><td>${jenisKasus}</td><td>${jenisPasien}</td></tr>`;
+            } limitPreview++;
+        }
+        document.getElementById('boxKasir').style.display = 'flex'; document.getElementById('boxSync').style.display = 'none';
+        document.getElementById('countUmum').innerText = payloadUmum.length + " Pasien"; document.getElementById('countBPJS').innerText = payloadBPJS.length + " Pasien";
+        tampilkanTabel(payloadUmum.length + payloadBPJS.length);
+    }
+
+    function logicRincianPendapatan(workbook) {
+        payloadSync = []; previewHtml = ""; let limitPreview = 0;
+        
+        // 💡 Tambahkan Header "Pembayaran" di Pratinjau
+        document.getElementById('previewHead').innerHTML = "<tr><th>DB Tujuan</th><th>Pembayaran</th><th>No RM</th><th>DPJP Terbaca</th><th>Status Klaim</th><th>Update Nominal</th></tr>";
+
+        function cariIndexHeader(data) {
+            for(let i=0; i<15; i++) { if(data[i] && data[i].join("").toLowerCase().includes("no. rm")) return i; } return -1;
+        }
+
+        workbook.SheetNames.forEach(sheetName => {
+            const sn = sheetName.toLowerCase();
+            const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header: 1, defval: ""});
+            let hIdx = cariIndexHeader(data); if(hIdx === -1) return;
+
+            if (sn.includes("bpjs ri")) {
+                for (let i = hIdx + 1; i < data.length; i++) {
+                    let rm = formatRM(data[i][3]); if(!rm || rm==="000000") continue;
+                    let selisih = Number(data[i][20])||0; let nominal = Number(data[i][13])||0; let status = String(data[i][11]).trim();
+                    if (selisih > 0) { nominal = -Math.abs(selisih); status = "VPK"; }
+                    let dokterDPJP = ekstrakDPJPPintar(data[i]);
+                    
+                    // 💡 Penambahan parameter jenis_pembayaran: "BPJS"
+                    payloadSync.push({ target_db: "DB_Ranap_BPJS", jenis_pembayaran: "BPJS", tgl_masuk: formatTanggalExcel(data[i][1]), tgl_pulang: formatTanggalExcel(data[i][2]), rm: "'" + rm, nama: data[i][4], nominal: nominal, status_klaim: status, dpjp: dokterDPJP });
+                    if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">DB_Ranap_BPJS</span></td><td><b>BPJS</b></td><td style="font-family:monospace;">${rm}</td><td style="color:#1d4ed8; font-weight:bold">${dokterDPJP}</td><td style="font-weight:bold">${status}</td><td>${formatRp(nominal)}</td></tr>`; limitPreview++;
+                }
+            }
+            else if (sn.includes("bpjs rj")) {
+                for (let i = hIdx + 1; i < data.length; i++) {
+                    let rm = formatRM(data[i][3]); if(!rm || rm==="000000") continue;
+                    let dokterDPJP = ekstrakDPJPPintar(data[i]);
+                    
+                    // 💡 Penambahan parameter jenis_pembayaran: "BPJS"
+                    payloadSync.push({ target_db: "DB_Rajal_BPJS", jenis_pembayaran: "BPJS", tgl_masuk: formatTanggalExcel(data[i][1]), tgl_pulang: formatTanggalExcel(data[i][2]), rm: "'" + rm, nama: data[i][4], nominal: Number(data[i][13])||0, status_klaim: String(data[i][11]).trim(), dpjp: dokterDPJP });
+                    if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">DB_Rajal_BPJS</span></td><td><b>BPJS</b></td><td style="font-family:monospace;">${rm}</td><td style="color:#1d4ed8; font-weight:bold">${dokterDPJP}</td><td style="font-weight:bold">${String(data[i][11]).trim()}</td><td>${formatRp(Number(data[i][13])||0)}</td></tr>`; limitPreview++;
+                }
+            }
+            else if (sn.includes("raharja") || sn.includes("jamkesda") || sn.includes("jkk") || sn.includes("tk")) {
+                for (let i = hIdx + 1; i < data.length; i++) {
+                    let rm = formatRM(data[i][3]); if(!rm || rm==="000000") continue;
+                    let jenis = String(data[i][10]).toUpperCase().trim(); let ket = String(data[i][12]).toUpperCase();
+                    
+                    let db = sn.includes("raharja") ? (jenis==="RI" ? "DB_Ranap_Umum" : "DB_Rajal_Umum") : (jenis==="RI" ? "DB_Ranap_BPJS" : "DB_Rajal_BPJS");
+                    let status = ket.includes("PAID") ? "Disetujui" : "Pending";
+                    let dokterDPJP = normalisasiNamaDokter(data[i][11]);
+                    
+                    // 💡 Deteksi Jenis Pembayaran secara Spesifik 
+                    let jenisBayar = "BPJS"; 
+                    if (sn.includes("raharja")) jenisBayar = "Jasa Raharja";
+                    else if (sn.includes("jamkesda")) jenisBayar = "Jamkesda";
+                    else if (sn.includes("jkk") || sn.includes("tk")) jenisBayar = "BPJS-TK";
+
+                    payloadSync.push({ target_db: db, jenis_pembayaran: jenisBayar, tgl_masuk: formatTanggalExcel(data[i][1]), tgl_pulang: formatTanggalExcel(data[i][2]), rm: "'" + rm, nama: data[i][4], nominal: Number(data[i][9])||0, status_klaim: status, dpjp: dokterDPJP });
+                    if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">${db}</span></td><td><b>${jenisBayar}</b></td><td style="font-family:monospace;">${rm}</td><td style="color:#1d4ed8; font-weight:bold">${dokterDPJP}</td><td style="font-weight:bold">${status}</td><td>${jenisBayar === 'Jasa Raharja' ? '<i>Abaikan</i>' : formatRp(Number(data[i][9])||0)}</td></tr>`; limitPreview++;
+                }
+            }
+        });
+        
+        document.getElementById('boxKasir').style.display = 'none'; document.getElementById('boxSync').style.display = 'flex';
+        document.getElementById('countSync').innerText = payloadSync.length + " Pasien";
+        tampilkanTabel(payloadSync.length);
+    }
+
+    function tampilkanTabel(total) {
+        document.getElementById('stagingArea').style.display = 'block';
+        if(total > 50) previewHtml += `<tr><td colspan="7" style="text-align:center; background:#f3f4f6;"><i>... dan ${total - 50} baris lainnya disembunyikan ...</i></td></tr>`;
+        document.getElementById('previewBody').innerHTML = previewHtml;
+        document.getElementById('fileInput').value = ""; 
+    }
+
+    async function simpanKeDatabase() {
+        const tipeData = document.getElementById('pilihanSumber').value;
+        if (tipeData === "kasir_rajal" && payloadUmum.length === 0 && payloadBPJS.length === 0) return alert("Tidak ada data valid.");
+        if (tipeData === "rincian_pendapatan" && payloadSync.length === 0) return alert("Tidak ada data valid.");
+
+        if (!confirm(`Apakah Anda yakin ingin mengeksekusi migrasi/sinkronisasi ini ke Database Utama?`)) return;
+
+        const loading = document.getElementById('loadingOverlay');
+        const txtLoading = document.getElementById('loadingText');
+        loading.style.display = 'flex';
+
+        try {
+            if (tipeData === "kasir_rajal") {
+                let msgSuccess = [];
+                if (payloadBPJS.length > 0) {
+                    txtLoading.innerText = `Mengirim ${payloadBPJS.length} data ke DB_Rajal_BPJS...`;
+                    const res1 = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "simpan_bulk", sheet_db: "DB_Rajal_BPJS", data_excel: payloadBPJS, is_final: false }) });
+                    let out1 = await res1.json(); if(out1.status === "success") msgSuccess.push("✅ BPJS: " + out1.message);
+                }
+                if (payloadUmum.length > 0) {
+                    txtLoading.innerText = `Mengirim ${payloadUmum.length} data ke DB_Rajal_Umum...`;
+                    const res2 = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "simpan_bulk", sheet_db: "DB_Rajal_Umum", data_excel: payloadUmum, is_final: false }) });
+                    let out2 = await res2.json(); if(out2.status === "success") msgSuccess.push("✅ UMUM: " + out2.message);
+                }
+                alert("🎉 MIGRASI KASIR SUKSES!\n\n" + msgSuccess.join("\n\n"));
+            } 
+            else if (tipeData === "rincian_pendapatan") {
+                txtLoading.innerText = `Memproses Sinkronisasi ${payloadSync.length} Data ke Semua DB...`;
+                const res = await fetch(WEB_APP_URL, {
+                    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: "sync_pendapatan", data: payloadSync })
+                });
+                const out = await res.json();
+                alert(out.message);
+            }
+            resetLayar();
+        } catch (e) {
+            alert("❌ Terjadi kesalahan koneksi saat mengirim data ke server.");
+            console.error(e);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+</script>
+</body>
+</html>
