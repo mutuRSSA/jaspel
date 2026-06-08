@@ -4,7 +4,7 @@
  * =========================================================================
  */
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx5P45m3d0HdZ7nHdw4BJwfHCMYaHk8UefT1ATShgvwJ38k7BkiZyXAmGlzMG3Jfut-/exec"; 
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzjg-4TGmSd0cyWpEPDKv3pq1G5c2pa46PavdqE4vIIcqYdaGCtHG1nFFXRgyQPFfGV/exec"; 
 
 function renderNavbar() {
     let currentRole = localStorage.getItem("userRole") || "operator";
@@ -14,6 +14,8 @@ function renderNavbar() {
             title: "📝 Entri Jaspel",
             roles: ["operator", "admin"], 
             items: [
+                // 💡 HALAMAN UNIVERSAL UPLOADER DITAMBAHKAN DI SINI
+                { name: "Universal Uploader", link: "upload_data.html", icon: "🗂️" },
                 { name: "Entry Massal Jaspel", link: "entry_massal.html", icon: "📥" },
                 { name: "Database Pasien", link: "admin_pasien.html", icon: "🏥" }
             ]
@@ -23,7 +25,6 @@ function renderNavbar() {
             roles: ["keuangan", "admin"], 
             items: [
                 { name: "Karyawan & Kinerja", link: "karyawan.html", icon: "👥" },
-                // Menambahkan admin_kinerja.html di sini
                 { name: "Data Kinerja", link: "admin_kinerja.html", icon: "⭐" }, 
                 { name: "Master Variabel Jaspel", link: "variabel.html", icon: "🎛️" }
             ]
@@ -32,7 +33,6 @@ function renderNavbar() {
             title: "📁 Laporan & Arsip",
             roles: ["keuangan", "direksi", "admin"], 
             items: [
-                // Menambahkan admin_laporan.html di sini
                 { name: "Laporan Jaspel", link: "admin_laporan.html", icon: "📑" },
                 { name: "Buku Besar / Arsip", link: "arsip.html", icon: "📚" },
                 { name: "Jejak Audit Keamanan", link: "log_audit.html", icon: "🛡️" }
