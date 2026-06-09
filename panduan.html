@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Buku Panduan Jaspel RSUD</title>
+    <script src="config.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f3f4f6; padding: 20px; margin: 0; color: #1f2937; line-height: 1.6; }
+        .header { margin-bottom: 25px; }
+        h2 { margin: 0; color: #1e3a8a; font-weight: 700; }
+        .subtitle { color: #6b7280; font-size: 14px; margin-top: 5px; }
+        
+        .card { background: white; padding: 35px 40px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; max-width: 1000px; margin-left: auto; margin-right: auto; }
+        
+        h3 { color: #1d4ed8; margin-top: 40px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; font-size: 22px;}
+        h4 { color: #0f766e; margin-top: 25px; font-size: 18px;}
+        
+        .alert { padding: 15px 20px; border-radius: 8px; margin: 20px 0; font-size: 15px;}
+        .alert-danger { background: #fef2f2; border-left: 5px solid #ef4444; color: #991b1b; }
+        .alert-info { background: #eff6ff; border-left: 5px solid #3b82f6; color: #1e40af; }
+        .alert-warning { background: #fffbeb; border-left: 5px solid #f59e0b; color: #92400e; }
+        
+        ul, ol { padding-left: 25px; margin-top: 10px; }
+        li { margin-bottom: 10px; }
+        
+        .badge { background: #f3f4f6; padding: 3px 8px; border-radius: 6px; font-weight: bold; color: #374151; font-size: 14px; border: 1px solid #d1d5db;}
+        .highlight { font-weight: bold; color: #b91c1c; }
+        
+        .step-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .step-title { font-weight: bold; color: #334155; font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;}
+    </style>
+</head>
+<body>
+<script>
+    if (!localStorage.getItem("userRole")) window.location.href = "login.html";
+</script>
+<script>renderNavbar();</script> 
+
+<div class="header" style="max-width: 1000px; margin: 0 auto 25px auto;">
+    <h2>📖 Buku Panduan Sistem Jaspel</h2>
+    <div class="subtitle">SOP Penggunaan Sistem Manajemen Jasa Pelayanan RSUD - Super Lengkap & Mudah</div>
+</div>
+
+<div class="card">
+    <div class="alert alert-info">
+        <strong>💡 Pengantar Singkat:</strong><br>
+        Sistem ini dibuat agar Anda <b>tidak perlu lagi mengetik manual</b> atau mencocokkan data pasien satu per satu. Komputer yang akan mengerjakannya untuk Anda. Tugas Anda hanyalah <b>meng-upload file Excel</b> ke dalam sistem dengan <b>URUTAN YANG BENAR</b>.
+    </div>
+
+    <div class="alert alert-danger">
+        <strong>🛑 ATURAN EMAS (HARAP DIBACA SEBELUM MULAI)</strong>
+        <ol style="margin-bottom: 0;">
+            <li><b>Jangan Ubah File Excel dari SIMRS:</b> Saat Anda mendownload laporan, biarkan file itu apa adanya. <b>JANGAN</b> mengganti nama kolom, menghapus baris, atau mewarnai selnya. Langsung masukkan ke sistem.</li>
+            <li><b>Urutan Upload Tidak Boleh Terbalik:</b> Ibarat membangun rumah, buat pondasi dulu (Laporan Kasir), baru pasang atap (Rincian Pendapatan). Kalau terbalik, rumahnya akan roboh (sistem akan error).</li>
+        </ol>
+    </div>
+
+    <h3>BAB 1: CARA MENGUNGGAH (UPLOAD) DATA BULANAN</h3>
+    <p><i>(Lakukan ini setiap kali Anda ingin memasukkan data pasien baru ke dalam web)</i></p>
+    <p>Buka menu di sebelah kiri layar Anda: Klik <span class="badge">📝 Entri Jaspel</span> lalu pilih <span class="badge">🗂️ Universal Uploader</span>.</p>
+
+    <div class="step-box">
+        <div class="step-title">🛠️ LANGKAH 1: Masukkan Data KASIR (Pondasi Rumah)</div>
+        <p>Mengapa ini yang pertama? Karena file kasir berisi data identitas lengkap (Nama, No RM, dan Dokter Asli). Kita harus mendaftarkan pasiennya dulu ke sistem.</p>
+        <ol>
+            <li>Lihat tulisan <b>"Pilih Format File yang Diupload"</b> di layar atas.</li>
+            <li>Pilih <span class="badge">🗂️ Laporan Kasir Rawat Jalan</span> atau <span class="badge">🗂️ Laporan Kasir Rawat Inap</span>.</li>
+            <li>Tarik dan seret (drag) file Excel Kasir tersebut ke dalam kotak besar berwarna biru.</li>
+            <li>Jika datanya sudah muncul di tabel bawah, klik tombol hijau <b>"Mulai Eksekusi Database 🚀"</b>.</li>
+            <li>Tunggu sampai muncul tulisan <b>"SUKSES"</b>.</li>
+        </ol>
+    </div>
+
+    <div class="step-box">
+        <div class="step-title">🛠️ LANGKAH 2: Masukkan Data PENDAPATAN (Pewarna Rumah)</div>
+        <p>Sekarang kita beri tahu sistem: <i>"Pasien ini BPJS/Jasa Raharja-nya cair berapa rupiah, dan statusnya apa?"</i></p>
+        <ol>
+            <li>Ganti pilihan kotak di atas menjadi: <span class="badge">💰 Rincian Pendapatan (Multi-Sheet)</span>.</li>
+            <li>Tarik dan seret file Excel Rincian Pendapatan ke dalam kotak biru.</li>
+            <li><i>Hebatnya sistem ini: Meskipun di file Excel Anda nama dokternya hanya tertulis "UGD", sistem akan tetap mempertahankan nama dokter asli yang sudah Anda masukkan di Langkah 1!</i></li>
+            <li>Klik tombol hijau <b>"Mulai Eksekusi Database 🚀"</b> dan tunggu sampai Sukses.</li>
+        </ol>
+    </div>
+
+    <div class="step-box">
+        <div class="step-title">🛠️ LANGKAH 3: Masukkan Data USG (Pelengkap)</div>
+        <ol>
+            <li>Ganti pilihan kotak di atas menjadi: <span class="badge">🩻 Rekap Pemeriksaan USG</span>.</li>
+            <li>Tarik dan seret file Excel USG ke dalam kotak biru.</li>
+            <li>Klik tombol hijau <b>"Mulai Eksekusi Database 🚀"</b>. Sistem otomatis memberi tanda centang "Ya" di kolom USG pasien tersebut.</li>
+        </ol>
+    </div>
+
+    <h3>BAB 2: JIKA ADA DATA YANG SALAH (CARA EDIT MANUAL)</h3>
+    <p><i>(Gunakan ini jika ada klaim BPJS yang tiba-tiba ditolak/direvisi, atau ingin mengubah nama dokter secara spesifik)</i></p>
+    <ol>
+        <li>Buka menu: <span class="badge">📝 Entri Jaspel</span> lalu pilih <span class="badge">🏥 Database Pasien</span>.</li>
+        <li>Gunakan kotak <b>Pencarian</b> (ketik Nama atau No RM) untuk mencari pasien.</li>
+        <li>Jika sudah ketemu, ubah datanya langsung di tabel tersebut.</li>
+    </ol>
+    <div class="alert alert-warning">
+        <strong>PENTING TENTANG STATUS KLAIM:</strong><br>
+        ✔️ Pilih <b>"Disetujui"</b> 👉 Jika uangnya sudah pasti turun. (Hanya status ini yang uangnya akan dihitung dan dibagikan).<br>
+        ❌ Pilih <b>"Pending" / "Tidak Layak" / "VPK"</b> 👉 Jika bermasalah. Uangnya TIDAK AKAN masuk ke kantong dokter/perawat bulan ini.
+    </div>
+
+    <h3>BAB 3: MENGATUR PEGAWAI & NILAI KINERJA</h3>
+    <p><i>(Wajib dilakukan SETIAP AWAL BULAN sebelum bagi-bagi uang)</i></p>
+    
+    <h4>A. Karyawan Baru / Resign / Mutasi</h4>
+    <ol>
+        <li>Buka menu: <span class="badge">⚙️ Data Master</span> lalu pilih <span class="badge">👥 Karyawan & Kinerja</span>.</li>
+        <li>Tambahkan data karyawan baru atau ubah jabatan karyawan lama. Pastikan <b>Nomor Rekening terisi benar</b>.</li>
+    </ol>
+
+    <h4>B. Mengisi Nilai Kinerja Bulanan</h4>
+    <ol>
+        <li>Buka menu: <span class="badge">⚙️ Data Master</span> lalu pilih <span class="badge">⭐ Data Kinerja</span>.</li>
+        <li>Isi angka <b>Produktivitas</b>, <b>Disiplin</b>, dan <b>Hukuman</b> untuk setiap orang.</li>
+        <li>Jika tidak ada pelanggaran, pastikan nilainya 1 (standar). <b>Jangan biarkan 0</b>, nanti jatah jaspel mereka hilang!</li>
+    </ol>
+
+    <h3>BAB 4: CARA BAGI UANG & TUTUP BUKU</h3>
+    <p><i>(Lakukan ini saat semua data sudah benar dan uang siap ditransfer)</i></p>
+    
+    <ol>
+        <li><b>Cek Uang:</b> Buka <span class="badge">📊 Dashboard Analitik</span>. Lihat total uang yang cair. Apakah masuk akal?</li>
+        <li><b>Cetak Slip:</b> Buka <span class="badge">📑 Laporan Jaspel</span>. Download Slip Jaspel (PDF) untuk masing-masing orang.</li>
+        <li><b>Kunci Data (Tutup Buku):</b> Jika semua sudah final, Anda <b>WAJIB menekan tombol "Arsipkan Laporan"</b>.</li>
+    </ol>
+    
+    <div class="alert alert-info">
+        <strong>Apa yang terjadi saat menekan tombol "Arsipkan Laporan"?</strong>
+        <ul>
+            <li>Data yang sudah dibayarkan akan dihapus dari layar antrean Anda, supaya web tidak lemot.</li>
+            <li>Data tersebut tidak hilang! Melainkan dikunci rapat dan <b>disimpan otomatis ke Google Drive</b>.</li>
+            <li>Status uangnya berubah menjadi "Terbayarkan". Tidak ada lagi risiko uang dokter dibayar dobel bulan depan.</li>
+        </ul>
+    </div>
+
+    <h3>BAB 5: BANTUAN DARURAT (TANYA JAWAB)</h3>
+    <div class="step-box" style="background: white;">
+        <p><b>Tanya:</b> "Kok waktu saya naruh data Pendapatan, pasiennya malah numpuk di bawah bikin data baru? Padahal pasiennya udah ada!"</p>
+        <p style="color: #475569; margin-bottom: 20px;"><b>Jawab:</b> Anda pasti <b>lupa</b> melakukan Langkah 1 (Upload Kasir). Jangan pernah upload Rincian Pendapatan sebelum meng-upload Laporan Kasir!</p>
+
+        <p><b>Tanya:</b> "Kok saya nggak bisa login?"</p>
+        <p style="color: #475569; margin-bottom: 20px;"><b>Jawab:</b> Perhatikan huruf besar/kecil (Caps Lock) pada password. Jika masih tidak bisa, minta Admin untuk mereset password Anda.</p>
+
+        <p><b>Tanya:</b> "Saya habis copy-paste data manual dari Excel, kok dokternya masih singkatan (misal: ALVIAN)?"</p>
+        <p style="color: #475569;"><b>Jawab:</b> Sistem kita sangat pintar. Cukup Paste saja. Begitu diklik simpan ke database, sistem otomatis mengubah kata "ALVIAN" menjadi nama lengkap resminya.</p>
+    </div>
+
+</div>
+</body>
+</html>

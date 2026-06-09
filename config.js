@@ -4,7 +4,7 @@
  * =========================================================================
  */
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzOUPuF84zCfu0O8w7mGzFyyl-YWuxxEEvOe7sjmOoin9yt9Lrc57xSe22RGlnoeADD/exec"; 
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzjg-4TGmSd0cyWpEPDKv3pq1G5c2pa46PavdqE4vIIcqYdaGCtHG1nFFXRgyQPFfGV/exec"; 
 
 function renderNavbar() {
     let currentRole = localStorage.getItem("userRole") || "operator";
@@ -14,7 +14,6 @@ function renderNavbar() {
             title: "📝 Entri Jaspel",
             roles: ["operator", "admin"], 
             items: [
-                // 💡 HALAMAN UNIVERSAL UPLOADER DITAMBAHKAN DI SINI
                 { name: "Universal Uploader", link: "upload_data.html", icon: "🗂️" },
                 { name: "Entry Massal Jaspel", link: "entry_massal.html", icon: "📥" },
                 { name: "Database Pasien", link: "admin_pasien.html", icon: "🏥" }
@@ -44,6 +43,14 @@ function renderNavbar() {
             items: [
                 { name: "Dashboard Analitik", link: "dashboard.html", icon: "📊" }
             ]
+        },
+        // 💡 MENU BARU: PUSAT BANTUAN
+        {
+            title: "❓ Pusat Bantuan",
+            roles: ["operator", "keuangan", "direksi", "admin"], // Semua role bisa baca
+            items: [
+                { name: "Buku Panduan (SOP)", link: "panduan.html", icon: "📖" }
+            ]
         }
     ];
 
@@ -55,7 +62,7 @@ function renderNavbar() {
         .nav-item { position: relative; }
         .nav-link { color: #d1d8e0; text-decoration: none; padding: 15px 10px; display: block; font-weight: 500; font-size: 14px; transition: 0.3s; cursor: pointer; }
         .nav-link:hover, .nav-item:hover .nav-link { color: #fff; background: #4b6584; border-radius: 4px; }
-        .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; background: white; min-width: 220px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; z-index: 1000; list-style: none; padding:0; margin:0;}
+        .dropdown-menu { display: none; position: absolute; top: 100%; right: 0; background: white; min-width: 220px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; z-index: 1000; list-style: none; padding:0; margin:0;}
         .nav-item:hover .dropdown-menu { display: block; }
         .dropdown-item { padding: 12px 15px; display: flex; align-items: center; gap: 10px; color: #333; text-decoration: none; font-size: 13px; border-bottom: 1px solid #eee; transition: 0.2s;}
         .dropdown-item:hover { background: #f8f9fa; color: #007bff; padding-left: 20px; }
@@ -87,7 +94,7 @@ function renderNavbar() {
 
     html += `
             <li class="nav-item">
-                <a class="nav-link" onclick="handleLogout()" style="color: #ff7675;">🚪 Keluar</a>
+                <a class="nav-link" onclick="handleLogout()" style="color: #ff7675; border-left: 1px solid #4b5563; padding-left: 20px; margin-left: 10px;">🚪 Keluar</a>
             </li>
         </ul>
     </nav>`;
