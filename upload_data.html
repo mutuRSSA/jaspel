@@ -38,19 +38,14 @@
     </style>
 </head>
 <body>
-<script>
-    if (!localStorage.getItem("userRole")) window.location.href = "login.html";
-</script>
+<script>if (!localStorage.getItem("userRole")) window.location.href = "login.html";</script>
 <script>renderNavbar();</script> 
 
-<div id="loadingOverlay">
-    <div style="font-size: 40px; margin-bottom: 10px;">🚀</div>
-    <div id="loadingText">Sedang Mengirim Data ke Database...</div>
-</div>
+<div id="loadingOverlay"><div style="font-size: 40px; margin-bottom: 10px;">🚀</div><div id="loadingText">Sedang Mengirim Data ke Database...</div></div>
 
 <div class="header">
     <h2>📥 Universal Uploader Jaspel</h2>
-    <div class="subtitle">Upload Laporan Kasir atau Rekap Pendapatan. Sistem otomatis merapikan format dan mensinkronkan database.</div>
+    <div class="subtitle">Upload Laporan Kasir, Rekap Pendapatan, atau Rekap Pemeriksaan (USG).</div>
 </div>
 
 <div class="card">
@@ -58,14 +53,16 @@
         <label style="font-weight: bold; color: #374151;">Pilih Format File yang Diupload:</label>
         <select id="pilihanSumber" onchange="resetLayar()">
             <option value="kasir_rajal">🗂️ Laporan Kasir Rawat Jalan (Auto-Split UMUM & BPJS)</option>
+            <option value="kasir_ranap_umum">🗂️ Laporan Kasir Rawat Inap (Khusus UMUM & Jasa Raharja)</option>
             <option value="rincian_pendapatan">💰 Rincian Pendapatan (Multi-Sheet: BPJS, JKK, Jamkesda)</option>
+            <option value="rekap_usg">🩻 Rekap Pemeriksaan USG (Auto-Update Status USG)</option>
         </select>
     </div>
 
     <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
         <div class="dropzone-icon">📁</div>
         <div class="dropzone-text">Klik atau Tarik File Laporan Excel Sini</div>
-        <div class="dropzone-subtext">Sistem dilengkapi Identifikasi Jenis Bayar & Filter UMUM</div>
+        <div class="dropzone-subtext">Sistem dilengkapi Identifikasi Dinamis untuk Update Data</div>
         <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileSelect(event)">
     </div>
 </div>
@@ -77,36 +74,24 @@
     </div>
     
     <div class="summary-boxes" id="boxKasir">
-        <div class="sum-box umum">
-            <div style="font-weight: bold; color: #d97706;">Antrean DB_Rajal_Umum</div>
-            <div id="countUmum" style="font-size: 24px; font-weight: bold;">0 Pasien</div>
-        </div>
-        <div class="sum-box bpjs">
-            <div style="font-weight: bold; color: #059669;">Antrean DB_Rajal_BPJS</div>
-            <div id="countBPJS" style="font-size: 24px; font-weight: bold;">0 Pasien</div>
-        </div>
+        <div class="sum-box umum"><div style="font-weight: bold; color: #d97706;">Antrean DB_Rajal_Umum</div><div id="countUmum" style="font-size: 24px; font-weight: bold;">0 Pasien</div></div>
+        <div class="sum-box bpjs"><div style="font-weight: bold; color: #059669;">Antrean DB_Rajal_BPJS</div><div id="countBPJS" style="font-size: 24px; font-weight: bold;">0 Pasien</div></div>
     </div>
-
+    <div class="summary-boxes" id="boxRanapUmum" style="display: none;">
+        <div class="sum-box" style="border-left-color: #4f46e5; background: #eef2ff;"><div style="font-weight: bold; color: #3730a3;">Antrean DB_Ranap_Umum</div><div id="countRanapUmum" style="font-size: 24px; font-weight: bold;">0 Pasien</div></div>
+    </div>
     <div class="summary-boxes" id="boxSync" style="display: none;">
-        <div class="sum-box" style="border-left-color: #3b82f6;">
-            <div style="font-weight: bold; color: #1d4ed8;">Data Tersinkronisasi (Multi-DB)</div>
-            <div id="countSync" style="font-size: 24px; font-weight: bold;">0 Pasien</div>
-        </div>
+        <div class="sum-box" style="border-left-color: #3b82f6;"><div style="font-weight: bold; color: #1d4ed8;">Data Tersinkronisasi (Multi-DB)</div><div id="countSync" style="font-size: 24px; font-weight: bold;">0 Pasien</div></div>
     </div>
 
-    <div class="table-wrapper">
-        <table id="previewTable">
-            <thead id="previewHead"></thead>
-            <tbody id="previewBody"></tbody>
-        </table>
-    </div>
+    <div class="table-wrapper"><table id="previewTable"><thead id="previewHead"></thead><tbody id="previewBody"></tbody></table></div>
 </div>
 
 <script>
     const dropzone = document.getElementById('dropzone');
-    let payloadUmum = []; let payloadBPJS = []; let payloadSync = []; let previewHtml = "";
+    let payloadUmum = []; let payloadBPJS = []; let payloadRanapUmum = []; let payloadSync = []; let previewHtml = "";
 
-    function resetLayar() { document.getElementById('stagingArea').style.display = 'none'; payloadUmum = []; payloadBPJS = []; payloadSync = []; }
+    function resetLayar() { document.getElementById('stagingArea').style.display = 'none'; payloadUmum = []; payloadBPJS = []; payloadRanapUmum = []; payloadSync = []; }
 
     function formatTanggalExcel(val) {
         if(!val) return "";
@@ -162,12 +147,9 @@
             let val = String(rowArray[k] || "").trim();
             if(val !== "" && isNaN(val) && !val.includes("#N/A")) {
                 let vUp = val.toUpperCase();
-                if(vUp !== "DISETUJUI" && vUp !== "PENDING" && !vUp.includes("PAID") && vUp !== "RJ" && vUp !== "RI") {
-                    return normalisasiNamaDokter(val);
-                }
+                if(vUp !== "DISETUJUI" && vUp !== "PENDING" && !vUp.includes("PAID") && vUp !== "RJ" && vUp !== "RI") return normalisasiNamaDokter(val);
             }
-        }
-        return "-";
+        } return "-";
     }
 
     const formatRp = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(angka) || 0);
@@ -184,156 +166,153 @@
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, {type: 'array'});
             if (tipeData === "kasir_rajal") logicKasirRajal(workbook);
+            else if (tipeData === "kasir_ranap_umum") logicKasirRanapUmum(workbook);
             else if (tipeData === "rincian_pendapatan") logicRincianPendapatan(workbook);
+            else if (tipeData === "rekap_usg") logicRekapUSG(workbook);
         };
         reader.readAsArrayBuffer(file);
     }
 
+    // ===============================================
+    // LOGIKA 1: KASIR RAWAT JALAN (UMUM & BPJS)
+    // ===============================================
     function logicKasirRajal(workbook) {
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonSheet = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ""}); 
-        if(jsonSheet.length < 3) return alert("File kosong atau format salah!");
-        payloadUmum = []; payloadBPJS = []; previewHtml = ""; let limitPreview = 0;
-
-        document.getElementById('previewHead').innerHTML = "<tr><th>Tujuan DB</th><th>Tanggal</th><th>No RM</th><th>Nama Pasien</th><th>Dokter</th><th>Jenis Kasus</th><th>Pembayaran</th></tr>";
-
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonSheet = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ""}); 
+        payloadUmum = []; payloadBPJS = []; previewHtml = ""; let limitPreview = 0; document.getElementById('previewHead').innerHTML = "<tr><th>Tujuan DB</th><th>Tanggal</th><th>No RM</th><th>Nama Pasien</th><th>Dokter</th><th>Jenis Kasus</th><th>Pembayaran</th></tr>";
         for (let i = 2; i < jsonSheet.length; i++) {
-            let row = jsonSheet[i];
-            let rm = formatRM(row[3]); if (!rm || rm === "") continue; 
-            let tanggal = formatTanggalExcel(row[1]); let noTrans = row[2]; let nama = row[4];
-            let dokter = normalisasiNamaDokter(row[9]); let jenisKasus = "Non Operasi"; 
-            let jenisPasien = String(row[10]).toUpperCase().trim();
-            
-            let labSarana = Number(row[16])||0; let radSarana = Number(row[19])||0;
-            let isBPJS = ["BPJS", "BPJS KETENAGAKERJAAN", "JAMKESDA"].includes(jenisPasien);
-
+            let row = jsonSheet[i]; let rm = formatRM(row[3]); if (!rm || rm === "") continue; 
+            let tanggal = formatTanggalExcel(row[1]); let noTrans = row[2]; let nama = row[4]; let dokter = normalisasiNamaDokter(row[9]); let jenisKasus = "Non Operasi"; let jenisPasien = String(row[10]).toUpperCase().trim();
+            let labSarana = Number(row[16])||0; let radSarana = Number(row[19])||0; let isBPJS = ["BPJS", "BPJS KETENAGAKERJAAN", "JAMKESDA"].includes(jenisPasien);
             if (isBPJS) {
-                let barisBPJS = new Array(29).fill("");
-                barisBPJS[1] = tanggal; barisBPJS[2] = "'" + rm; barisBPJS[3] = nama; barisBPJS[4] = jenisKasus; 
-                barisBPJS[5] = dokter; barisBPJS[9] = labSarana > 0 ? "Ya" : "Tidak"; barisBPJS[10] = radSarana > 0 ? "Ya" : "Tidak"; barisBPJS[12] = jenisPasien; 
-                payloadBPJS.push(barisBPJS);
-                if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-green">BPJS</span></td><td>${tanggal}</td><td style="font-family:monospace;">${rm}</td><td>${nama}</td><td>${dokter}</td><td>${jenisKasus}</td><td>${jenisPasien}</td></tr>`;
+                let barisBPJS = new Array(29).fill(""); barisBPJS[1] = tanggal; barisBPJS[2] = "'" + rm; barisBPJS[3] = nama; barisBPJS[4] = jenisKasus; barisBPJS[5] = dokter; barisBPJS[9] = labSarana > 0 ? "Ya" : "Tidak"; barisBPJS[10] = radSarana > 0 ? "Ya" : "Tidak"; barisBPJS[12] = jenisPasien; 
+                payloadBPJS.push(barisBPJS); if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-green">BPJS</span></td><td>${tanggal}</td><td style="font-family:monospace;">${rm}</td><td>${nama}</td><td>${dokter}</td><td>${jenisKasus}</td><td>${jenisPasien}</td></tr>`;
             } else {
-                let barisUmum = new Array(38).fill("");
-                barisUmum[1] = tanggal; barisUmum[2] = noTrans; barisUmum[3] = "'" + rm; barisUmum[4] = nama; 
-                barisUmum[6] = dokter; barisUmum[7] = jenisKasus; barisUmum[11] = jenisPasien;
-                barisUmum[13] = Number(row[12])||0; barisUmum[14] = Number(row[13])||0; barisUmum[15] = Number(row[14])||0; barisUmum[16] = Number(row[15])||0;
-                barisUmum[17] = labSarana; barisUmum[18] = (Number(row[17])||0) + (Number(row[18])||0); 
-                barisUmum[19] = radSarana; barisUmum[20] = (Number(row[20])||0) + (Number(row[21])||0);
-                barisUmum[21] = Number(row[22])||0; barisUmum[22] = Number(row[23])||0;
-                payloadUmum.push(barisUmum);
-                if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge" style="background:#fef3c7; color:#92400e;">UMUM</span></td><td>${tanggal}</td><td style="font-family:monospace;">${rm}</td><td>${nama}</td><td>${dokter}</td><td>${jenisKasus}</td><td>${jenisPasien}</td></tr>`;
+                let barisUmum = new Array(38).fill(""); barisUmum[1] = tanggal; barisUmum[2] = noTrans; barisUmum[3] = "'" + rm; barisUmum[4] = nama; barisUmum[6] = dokter; barisUmum[7] = jenisKasus; barisUmum[11] = jenisPasien; barisUmum[13] = Number(row[12])||0; barisUmum[14] = Number(row[13])||0; barisUmum[15] = Number(row[14])||0; barisUmum[16] = Number(row[15])||0; barisUmum[17] = labSarana; barisUmum[18] = (Number(row[17])||0) + (Number(row[18])||0); barisUmum[19] = radSarana; barisUmum[20] = (Number(row[20])||0) + (Number(row[21])||0); barisUmum[21] = Number(row[22])||0; barisUmum[22] = Number(row[23])||0;
+                payloadUmum.push(barisUmum); if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge" style="background:#fef3c7; color:#92400e;">UMUM</span></td><td>${tanggal}</td><td style="font-family:monospace;">${rm}</td><td>${nama}</td><td>${dokter}</td><td>${jenisKasus}</td><td>${jenisPasien}</td></tr>`;
             } limitPreview++;
         }
-        document.getElementById('boxKasir').style.display = 'flex'; document.getElementById('boxSync').style.display = 'none';
-        document.getElementById('countUmum').innerText = payloadUmum.length + " Pasien"; document.getElementById('countBPJS').innerText = payloadBPJS.length + " Pasien";
-        tampilkanTabel(payloadUmum.length + payloadBPJS.length);
+        document.getElementById('boxKasir').style.display = 'flex'; document.getElementById('boxSync').style.display = 'none'; document.getElementById('boxRanapUmum').style.display = 'none'; document.getElementById('countUmum').innerText = payloadUmum.length + " Pasien"; document.getElementById('countBPJS').innerText = payloadBPJS.length + " Pasien"; tampilkanTabel(payloadUmum.length + payloadBPJS.length);
     }
 
-    function logicRincianPendapatan(workbook) {
-        payloadSync = []; previewHtml = ""; let limitPreview = 0;
+    // ===============================================
+    // 💡 LOGIKA 2: KASIR RAWAT INAP (UMUM & JR) (REVISI)
+    // ===============================================
+    function logicKasirRanapUmum(workbook) {
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonSheet = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ""}); 
+        payloadRanapUmum = []; previewHtml = ""; let limitPreview = 0; document.getElementById('previewHead').innerHTML = "<tr><th>Tujuan DB</th><th>Tanggal</th><th>No RM</th><th>Nama Pasien</th><th>Dokter</th><th>Jenis Kasus</th><th>Pembayaran</th></tr>";
         
-        // 💡 Tambahkan Header "Pembayaran" di Pratinjau
-        document.getElementById('previewHead').innerHTML = "<tr><th>DB Tujuan</th><th>Pembayaran</th><th>No RM</th><th>DPJP Terbaca</th><th>Status Klaim</th><th>Update Nominal</th></tr>";
+        for (let i = 2; i < jsonSheet.length; i++) {
+            let row = jsonSheet[i]; 
+            let rm = formatRM(row[3]); if (!rm || rm === "") continue; 
+            
+            let tanggal = formatTanggalExcel(row[1]); let noTrans = row[2]; let nama = row[4]; 
+            let dokter = normalisasiNamaDokter(row[9]); let jenisKasus = "Non Operasi"; let jenisPasien = String(row[10]).toUpperCase().trim();
+            
+            let barisUmum = new Array(47).fill(""); 
+            barisUmum[1] = tanggal; 
+            barisUmum[2] = noTrans; 
+            barisUmum[3] = "'" + rm; 
+            barisUmum[4] = nama; 
+            barisUmum[6] = jenisPasien; 
+            barisUmum[7] = dokter; 
+            barisUmum[9] = jenisKasus; 
+            
+            // 💡 REVISI: Pemetaan Indeks Kolom Database Ranap Umum (Indeks mulai 0)
+            barisUmum[17] = Number(row[12])||0; // Pendaftaran Sarana (Kolom Excel R)
+            barisUmum[18] = Number(row[13])||0; // Pendaftaran Pelayanan (Kolom Excel S)
+            
+            barisUmum[19] = Number(row[14])||0; // Tindakan IGD Sarana (Kolom Excel T)
+            barisUmum[20] = Number(row[15])||0; // Tindakan IGD Pelayanan (Kolom Excel U)
+            
+            barisUmum[21] = Number(row[16])||0; // Tindakan Sarana (Kolom Excel V)
+            barisUmum[22] = Number(row[17])||0; // Tindakan Pelayanan (Kolom Excel W)
+            
+            barisUmum[23] = Number(row[18])||0; // Laboratorium Sarana (Kolom Excel X)
+            barisUmum[24] = (Number(row[19])||0) + (Number(row[20])||0); // Laboratorium Pelayanan + Cito (Kolom Excel Y)
+            
+            barisUmum[25] = Number(row[21])||0; // Radiologi Sarana (Kolom Excel Z)
+            barisUmum[26] = (Number(row[22])||0) + (Number(row[23])||0); // Radiologi Pelayanan + Cito (Kolom Excel AA)
+            
+            barisUmum[27] = Number(row[24])||0; // Farmasi (Total) Langsung (Kolom Excel AB)
 
-        function cariIndexHeader(data) {
-            for(let i=0; i<15; i++) { if(data[i] && data[i].join("").toLowerCase().includes("no. rm")) return i; } return -1;
+            payloadRanapUmum.push(barisUmum); 
+            if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge" style="background:#e0e7ff; color:#3730a3;">RANAP UMUM</span></td><td>${tanggal}</td><td style="font-family:monospace;">${rm}</td><td>${nama}</td><td>${dokter}</td><td>${jenisKasus}</td><td>${jenisPasien}</td></tr>`; 
+            limitPreview++;
         }
+        document.getElementById('boxKasir').style.display = 'none'; document.getElementById('boxSync').style.display = 'none'; document.getElementById('boxRanapUmum').style.display = 'flex'; document.getElementById('countRanapUmum').innerText = payloadRanapUmum.length + " Pasien"; tampilkanTabel(payloadRanapUmum.length);
+    }
 
+    // ===============================================
+    // LOGIKA 3: RINCIAN PENDAPATAN
+    // ===============================================
+    function logicRincianPendapatan(workbook) {
+        payloadSync = []; previewHtml = ""; let limitPreview = 0; document.getElementById('previewHead').innerHTML = "<tr><th>DB Tujuan</th><th>Pembayaran</th><th>No RM</th><th>DPJP Terbaca</th><th>Status Klaim</th><th>Update Nominal</th></tr>";
+        function cariIndexHeader(data) { for(let i=0; i<15; i++) { if(data[i] && data[i].join("").toLowerCase().includes("no. rm")) return i; } return -1; }
         workbook.SheetNames.forEach(sheetName => {
-            const sn = sheetName.toLowerCase();
-            const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header: 1, defval: ""});
-            let hIdx = cariIndexHeader(data); if(hIdx === -1) return;
-
-            if (sn.includes("bpjs ri")) {
-                for (let i = hIdx + 1; i < data.length; i++) {
-                    let rm = formatRM(data[i][3]); if(!rm || rm==="000000") continue;
-                    let selisih = Number(data[i][20])||0; let nominal = Number(data[i][13])||0; let status = String(data[i][11]).trim();
-                    if (selisih > 0) { nominal = -Math.abs(selisih); status = "VPK"; }
-                    let dokterDPJP = ekstrakDPJPPintar(data[i]);
-                    
-                    // 💡 Penambahan parameter jenis_pembayaran: "BPJS"
-                    payloadSync.push({ target_db: "DB_Ranap_BPJS", jenis_pembayaran: "BPJS", tgl_masuk: formatTanggalExcel(data[i][1]), tgl_pulang: formatTanggalExcel(data[i][2]), rm: "'" + rm, nama: data[i][4], nominal: nominal, status_klaim: status, dpjp: dokterDPJP });
-                    if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">DB_Ranap_BPJS</span></td><td><b>BPJS</b></td><td style="font-family:monospace;">${rm}</td><td style="color:#1d4ed8; font-weight:bold">${dokterDPJP}</td><td style="font-weight:bold">${status}</td><td>${formatRp(nominal)}</td></tr>`; limitPreview++;
-                }
-            }
-            else if (sn.includes("bpjs rj")) {
-                for (let i = hIdx + 1; i < data.length; i++) {
-                    let rm = formatRM(data[i][3]); if(!rm || rm==="000000") continue;
-                    let dokterDPJP = ekstrakDPJPPintar(data[i]);
-                    
-                    // 💡 Penambahan parameter jenis_pembayaran: "BPJS"
-                    payloadSync.push({ target_db: "DB_Rajal_BPJS", jenis_pembayaran: "BPJS", tgl_masuk: formatTanggalExcel(data[i][1]), tgl_pulang: formatTanggalExcel(data[i][2]), rm: "'" + rm, nama: data[i][4], nominal: Number(data[i][13])||0, status_klaim: String(data[i][11]).trim(), dpjp: dokterDPJP });
-                    if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">DB_Rajal_BPJS</span></td><td><b>BPJS</b></td><td style="font-family:monospace;">${rm}</td><td style="color:#1d4ed8; font-weight:bold">${dokterDPJP}</td><td style="font-weight:bold">${String(data[i][11]).trim()}</td><td>${formatRp(Number(data[i][13])||0)}</td></tr>`; limitPreview++;
-                }
-            }
-            else if (sn.includes("raharja") || sn.includes("jamkesda") || sn.includes("jkk") || sn.includes("tk")) {
-                for (let i = hIdx + 1; i < data.length; i++) {
-                    let rm = formatRM(data[i][3]); if(!rm || rm==="000000") continue;
-                    let jenis = String(data[i][10]).toUpperCase().trim(); let ket = String(data[i][12]).toUpperCase();
-                    
-                    let db = sn.includes("raharja") ? (jenis==="RI" ? "DB_Ranap_Umum" : "DB_Rajal_Umum") : (jenis==="RI" ? "DB_Ranap_BPJS" : "DB_Rajal_BPJS");
-                    let status = ket.includes("PAID") ? "Disetujui" : "Pending";
-                    let dokterDPJP = normalisasiNamaDokter(data[i][11]);
-                    
-                    // 💡 Deteksi Jenis Pembayaran secara Spesifik 
-                    let jenisBayar = "BPJS"; 
-                    if (sn.includes("raharja")) jenisBayar = "Jasa Raharja";
-                    else if (sn.includes("jamkesda")) jenisBayar = "Jamkesda";
-                    else if (sn.includes("jkk") || sn.includes("tk")) jenisBayar = "BPJS-TK";
-
-                    payloadSync.push({ target_db: db, jenis_pembayaran: jenisBayar, tgl_masuk: formatTanggalExcel(data[i][1]), tgl_pulang: formatTanggalExcel(data[i][2]), rm: "'" + rm, nama: data[i][4], nominal: Number(data[i][9])||0, status_klaim: status, dpjp: dokterDPJP });
-                    if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">${db}</span></td><td><b>${jenisBayar}</b></td><td style="font-family:monospace;">${rm}</td><td style="color:#1d4ed8; font-weight:bold">${dokterDPJP}</td><td style="font-weight:bold">${status}</td><td>${jenisBayar === 'Jasa Raharja' ? '<i>Abaikan</i>' : formatRp(Number(data[i][9])||0)}</td></tr>`; limitPreview++;
-                }
-            }
+            const sn = sheetName.toLowerCase(); const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header: 1, defval: ""}); let hIdx = cariIndexHeader(data); if(hIdx === -1) return;
+            if (sn.includes("bpjs ri")) { for (let i = hIdx + 1; i < data.length; i++) { let rm = formatRM(data[i][3]); if(!rm || rm==="000000") continue; let selisih = Number(data[i][20])||0; let nominal = Number(data[i][13])||0; let status = String(data[i][11]).trim(); if (selisih > 0) { nominal = -Math.abs(selisih); status = "VPK"; } let dokterDPJP = ekstrakDPJPPintar(data[i]); payloadSync.push({ target_db: "DB_Ranap_BPJS", jenis_pembayaran: "BPJS", tgl_masuk: formatTanggalExcel(data[i][1]), tgl_pulang: formatTanggalExcel(data[i][2]), rm: "'" + rm, nama: data[i][4], nominal: nominal, status_klaim: status, dpjp: dokterDPJP }); if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">DB_Ranap_BPJS</span></td><td><b>BPJS</b></td><td style="font-family:monospace;">${rm}</td><td style="color:#1d4ed8; font-weight:bold">${dokterDPJP}</td><td style="font-weight:bold">${status}</td><td>${formatRp(nominal)}</td></tr>`; limitPreview++; } }
+            else if (sn.includes("bpjs rj")) { for (let i = hIdx + 1; i < data.length; i++) { let rm = formatRM(data[i][3]); if(!rm || rm==="000000") continue; let dokterDPJP = ekstrakDPJPPintar(data[i]); payloadSync.push({ target_db: "DB_Rajal_BPJS", jenis_pembayaran: "BPJS", tgl_masuk: formatTanggalExcel(data[i][1]), tgl_pulang: formatTanggalExcel(data[i][2]), rm: "'" + rm, nama: data[i][4], nominal: Number(data[i][13])||0, status_klaim: String(data[i][11]).trim(), dpjp: dokterDPJP }); if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">DB_Rajal_BPJS</span></td><td><b>BPJS</b></td><td style="font-family:monospace;">${rm}</td><td style="color:#1d4ed8; font-weight:bold">${dokterDPJP}</td><td style="font-weight:bold">${String(data[i][11]).trim()}</td><td>${formatRp(Number(data[i][13])||0)}</td></tr>`; limitPreview++; } }
+            else if (sn.includes("raharja") || sn.includes("jamkesda") || sn.includes("jkk") || sn.includes("tk")) { for (let i = hIdx + 1; i < data.length; i++) { let rm = formatRM(data[i][3]); if(!rm || rm==="000000") continue; let jenis = String(data[i][10]).toUpperCase().trim(); let ket = String(data[i][12]).toUpperCase(); let db = sn.includes("raharja") ? (jenis==="RI" ? "DB_Ranap_Umum" : "DB_Rajal_Umum") : (jenis==="RI" ? "DB_Ranap_BPJS" : "DB_Rajal_BPJS"); let status = ket.includes("PAID") ? "Disetujui" : "Pending"; let dokterDPJP = normalisasiNamaDokter(data[i][11]); let jenisBayar = "BPJS"; if (sn.includes("raharja")) jenisBayar = "Jasa Raharja"; else if (sn.includes("jamkesda")) jenisBayar = "Jamkesda"; else if (sn.includes("jkk") || sn.includes("tk")) jenisBayar = "BPJS-TK"; payloadSync.push({ target_db: db, jenis_pembayaran: jenisBayar, tgl_masuk: formatTanggalExcel(data[i][1]), tgl_pulang: formatTanggalExcel(data[i][2]), rm: "'" + rm, nama: data[i][4], nominal: Number(data[i][9])||0, status_klaim: status, dpjp: dokterDPJP }); if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">${db}</span></td><td><b>${jenisBayar}</b></td><td style="font-family:monospace;">${rm}</td><td style="color:#1d4ed8; font-weight:bold">${dokterDPJP}</td><td style="font-weight:bold">${status}</td><td>${jenisBayar === 'Jasa Raharja' ? '<i>Abaikan</i>' : formatRp(Number(data[i][9])||0)}</td></tr>`; limitPreview++; } }
         });
-        
-        document.getElementById('boxKasir').style.display = 'none'; document.getElementById('boxSync').style.display = 'flex';
-        document.getElementById('countSync').innerText = payloadSync.length + " Pasien";
-        tampilkanTabel(payloadSync.length);
+        document.getElementById('boxKasir').style.display = 'none'; document.getElementById('boxRanapUmum').style.display = 'none'; document.getElementById('boxSync').style.display = 'flex'; document.getElementById('countSync').innerText = payloadSync.length + " Pasien"; tampilkanTabel(payloadSync.length);
+    }
+
+    // ===============================================
+    // LOGIKA 4: REKAP USG
+    // ===============================================
+    function logicRekapUSG(workbook) {
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonSheet = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ""}); 
+        if(jsonSheet.length < 2) return alert("File kosong atau format salah!");
+        payloadSync = []; previewHtml = ""; let limitPreview = 0; document.getElementById('previewHead').innerHTML = "<tr><th>DB Tujuan</th><th>Tanggal USG</th><th>No RM</th><th>Nama Pasien</th><th>Unit Asal</th><th>Jenis Pasien</th><th>Aksi Update</th></tr>";
+        let hIdx = -1; for(let i=0; i<10; i++) { if(jsonSheet[i] && jsonSheet[i].join("").toUpperCase().includes("NAMA PASIEN")) { hIdx = i; break; } } if(hIdx === -1) hIdx = 0; 
+        for (let i = hIdx + 1; i < jsonSheet.length; i++) {
+            let row = jsonSheet[i]; let rm = formatRM(row[3]); if (!rm || rm === "") continue; 
+            let tanggal = formatTanggalExcel(row[2]); let nama = row[4]; let unit = String(row[5]).toUpperCase().trim(); let jenisPasien = String(row[6]).toUpperCase().trim();
+            let targetDB = ""; let isRanap = unit.includes("RUANG") || unit.includes("UGD") || unit.includes("IGD") || unit.includes("ICU") || unit.includes("VK"); let isBPJS = jenisPasien.includes("BPJS") || jenisPasien.includes("JAMKESDA") || jenisPasien.includes("JKK");
+            if (isRanap) targetDB = isBPJS ? "DB_Ranap_BPJS" : "DB_Ranap_Umum"; else targetDB = isBPJS ? "DB_Rajal_BPJS" : "DB_Rajal_Umum";
+            payloadSync.push({ target_db: targetDB, rm: rm, tgl: tanggal, nama: nama });
+            if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge badge-purple">${targetDB}</span></td><td>${tanggal}</td><td style="font-family:monospace;">${rm}</td><td>${nama}</td><td>${unit}</td><td>${jenisPasien}</td><td><b style="color:#059669;">✔️ Ubah USG = "Ya"</b></td></tr>`; limitPreview++;
+        }
+        document.getElementById('boxKasir').style.display = 'none'; document.getElementById('boxRanapUmum').style.display = 'none'; document.getElementById('boxSync').style.display = 'flex'; document.getElementById('countSync').innerText = payloadSync.length + " Pemeriksaan"; tampilkanTabel(payloadSync.length);
     }
 
     function tampilkanTabel(total) {
         document.getElementById('stagingArea').style.display = 'block';
         if(total > 50) previewHtml += `<tr><td colspan="7" style="text-align:center; background:#f3f4f6;"><i>... dan ${total - 50} baris lainnya disembunyikan ...</i></td></tr>`;
-        document.getElementById('previewBody').innerHTML = previewHtml;
-        document.getElementById('fileInput').value = ""; 
+        document.getElementById('previewBody').innerHTML = previewHtml; document.getElementById('fileInput').value = ""; 
     }
 
     async function simpanKeDatabase() {
         const tipeData = document.getElementById('pilihanSumber').value;
         if (tipeData === "kasir_rajal" && payloadUmum.length === 0 && payloadBPJS.length === 0) return alert("Tidak ada data valid.");
-        if (tipeData === "rincian_pendapatan" && payloadSync.length === 0) return alert("Tidak ada data valid.");
+        if (tipeData === "kasir_ranap_umum" && payloadRanapUmum.length === 0) return alert("Tidak ada data valid.");
+        if ((tipeData === "rincian_pendapatan" || tipeData === "rekap_usg") && payloadSync.length === 0) return alert("Tidak ada data valid.");
 
         if (!confirm(`Apakah Anda yakin ingin mengeksekusi migrasi/sinkronisasi ini ke Database Utama?`)) return;
 
-        const loading = document.getElementById('loadingOverlay');
-        const txtLoading = document.getElementById('loadingText');
-        loading.style.display = 'flex';
+        const loading = document.getElementById('loadingOverlay'); const txtLoading = document.getElementById('loadingText'); loading.style.display = 'flex';
 
         try {
             if (tipeData === "kasir_rajal") {
                 let msgSuccess = [];
-                if (payloadBPJS.length > 0) {
-                    txtLoading.innerText = `Mengirim ${payloadBPJS.length} data ke DB_Rajal_BPJS...`;
-                    const res1 = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "simpan_bulk", sheet_db: "DB_Rajal_BPJS", data_excel: payloadBPJS, is_final: false }) });
-                    let out1 = await res1.json(); if(out1.status === "success") msgSuccess.push("✅ BPJS: " + out1.message);
-                }
-                if (payloadUmum.length > 0) {
-                    txtLoading.innerText = `Mengirim ${payloadUmum.length} data ke DB_Rajal_Umum...`;
-                    const res2 = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "simpan_bulk", sheet_db: "DB_Rajal_Umum", data_excel: payloadUmum, is_final: false }) });
-                    let out2 = await res2.json(); if(out2.status === "success") msgSuccess.push("✅ UMUM: " + out2.message);
-                }
-                alert("🎉 MIGRASI KASIR SUKSES!\n\n" + msgSuccess.join("\n\n"));
+                if (payloadBPJS.length > 0) { txtLoading.innerText = `Mengirim ${payloadBPJS.length} data ke DB_Rajal_BPJS...`; const res1 = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "simpan_bulk", sheet_db: "DB_Rajal_BPJS", data_excel: payloadBPJS, is_final: false }) }); let out1 = await res1.json(); if(out1.status === "success") msgSuccess.push("✅ BPJS: " + out1.message); }
+                if (payloadUmum.length > 0) { txtLoading.innerText = `Mengirim ${payloadUmum.length} data ke DB_Rajal_Umum...`; const res2 = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "simpan_bulk", sheet_db: "DB_Rajal_Umum", data_excel: payloadUmum, is_final: false }) }); let out2 = await res2.json(); if(out2.status === "success") msgSuccess.push("✅ UMUM: " + out2.message); }
+                alert("🎉 MIGRASI KASIR RAJAL SUKSES!\n\n" + msgSuccess.join("\n\n"));
             } 
+            else if (tipeData === "kasir_ranap_umum") {
+                txtLoading.innerText = `Mengirim ${payloadRanapUmum.length} data ke DB_Ranap_Umum...`;
+                const res = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "simpan_bulk", sheet_db: "DB_Ranap_Umum", data_excel: payloadRanapUmum, is_final: false }) });
+                let out = await res.json(); if(out.status === "success") alert("🎉 MIGRASI KASIR RANAP SUKSES!\n\n✅ UMUM / JR: " + out.message);
+            }
             else if (tipeData === "rincian_pendapatan") {
-                txtLoading.innerText = `Memproses Sinkronisasi ${payloadSync.length} Data ke Semua DB...`;
-                const res = await fetch(WEB_APP_URL, {
-                    method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify({ action: "sync_pendapatan", data: payloadSync })
-                });
-                const out = await res.json();
-                alert(out.message);
+                txtLoading.innerText = `Memproses Sinkronisasi ${payloadSync.length} Data...`;
+                const res = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "sync_pendapatan", data: payloadSync }) });
+                const out = await res.json(); alert(out.message);
+            }
+            else if (tipeData === "rekap_usg") {
+                txtLoading.innerText = `Menandai "Ya" untuk ${payloadSync.length} Pasien USG...`;
+                const res = await fetch(WEB_APP_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "sync_usg", data: payloadSync }) });
+                const out = await res.json(); alert(out.message);
             }
             resetLayar();
         } catch (e) {
