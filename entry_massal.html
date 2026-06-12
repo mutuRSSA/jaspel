@@ -46,7 +46,7 @@
     <h2 class="header-title">🚀 Workspace Entry Massal (Draf & Pending)</h2>
     
     <div class="alert-info">
-        💡 <b>Info Cerdas (Auto-Corrector):</b> Anda bisa langsung <i>Copy-Paste</i> data berantakan dari Excel ke sini. Kata seperti <code>PENDING</code> akan otomatis disesuaikan. Nama dokter singkatan seperti <code>dr. ALVIAN</code>, atau teks <code>UGD</code> akan otomatis diterjemahkan oleh sistem!
+        💡 <b>Info Cerdas (Auto-Corrector):</b> Anda bisa langsung <i>Copy-Paste</i> data berantakan dari Excel ke sini. Kata seperti <code>PENDING</code> akan otomatis disesuaikan. Nama dokter, format tanggal (DD-MM-YYYY), dan format No RM 6 Digit akan otomatis diterjemahkan oleh sistem!
     </div>
 
     <div class="top-panel">
@@ -125,6 +125,44 @@
         ]
     };
 
+    // 💡 PENJINAK FORMAT NO RM (Paksa 6 Digit)
+    function formatRM(rm) {
+        let str = String(rm).trim();
+        if(!str || str === "" || str === "undefined") return "";
+        if (str.includes('#')) return str; 
+        str = str.replace(/[^0-9]/g, ''); 
+        if (str.length === 0) return "";
+        return str.padStart(6, '0'); 
+    }
+
+    // 💡 PENJINAK FORMAT TANGGAL (Ubah ke DD-MM-YYYY)
+    function formatTanggal(val) {
+        if (!val) return "";
+        let str = String(val).trim();
+        let dateObj = null;
+
+        // 1. Tangani format aneh ISO (2026-02-11T17:00:00.000Z) atau YYYY-MM-DD
+        if (str.includes("T") && str.includes("Z")) {
+            dateObj = new Date(str);
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+            dateObj = new Date(str);
+        } 
+        // 2. Tangani format angka serial Excel (Misal: 46092)
+        else if (!isNaN(str) && Number(str) > 20000 && Number(str) < 100000) {
+            dateObj = new Date(Math.round((Number(str) - 25569) * 86400 * 1000));
+        }
+
+        // Jika berhasil dikonversi ke tanggal yang valid, rakit menjadi DD-MM-YYYY
+        if (dateObj && !isNaN(dateObj.getTime())) {
+            let day = String(dateObj.getDate()).padStart(2, '0');
+            let month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            let year = dateObj.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+        
+        return str; // Jika sudah format lokal manual (misal 11-02-2026), biarkan saja
+    }
+
     function inisialisasiTabel(pilihanSheet, dataAwal = []) {
         const wadah = document.getElementById('spreadsheet-container');
         wadah.innerHTML = ""; 
@@ -151,6 +189,10 @@
 
                 // Ambil Nama Kolom berdasarkan Index x yang sedang di-paste
                 const namaKolom = kolomDipilih[x].title.toUpperCase();
+
+                // 💡 PEMBERSIH TANGGAL DAN RM OTOMATIS SAAT KETIK/PASTE
+                if (namaKolom.includes("RM")) return formatRM(value);
+                if (namaKolom.includes("TANGGAL") || namaKolom.includes("TGL")) return formatTanggal(value);
 
                 // 2. Koreksi Otomatis Kolom Status
                 if (namaKolom.includes("STATUS")) {
@@ -213,6 +255,7 @@
 
     async function tarikData(mode) {
         const targetSheet = document.getElementById('sheetTujuan').value;
+        const kolomDipilih = konfigurasiHeader[targetSheet];
         const btn = mode === 'draft' ? document.getElementById('btnTarikDraft') : document.getElementById('btnTarikPending');
         const originalText = btn.innerText;
         btn.innerText = "⏳ Sedang Memuat..."; btn.disabled = true;
@@ -227,8 +270,18 @@
             const res = await response.json();
             
             if (res.data.length > 0) {
-                const jumlahKolomHeader = konfigurasiHeader[targetSheet].length;
-                const dataPas = res.data.map(baris => baris.slice(0, jumlahKolomHeader));
+                const jumlahKolomHeader = kolomDipilih.length;
+                
+                // 💡 PEMBERSIH TANGGAL DAN RM SAAT LOAD DARI DATABASE
+                const dataPas = res.data.map(baris => {
+                    let row = baris.slice(0, jumlahKolomHeader);
+                    kolomDipilih.forEach((col, idx) => {
+                        let title = col.title.toUpperCase();
+                        if (title.includes("RM")) row[idx] = formatRM(row[idx]);
+                        if (title.includes("TANGGAL") || title.includes("TGL")) row[idx] = formatTanggal(row[idx]);
+                    });
+                    return row;
+                });
                 
                 inisialisasiTabel(targetSheet, dataPas);
                 alert(`✅ Berhasil memuat ${res.data.length} pasien (${mode.toUpperCase()})!`);
@@ -242,14 +295,26 @@
     async function kirimData(isFinalMode) {
         if (!tabelExcel) return;
 
+        const targetSheet = document.getElementById('sheetTujuan').value;
+        const kolomDipilih = konfigurasiHeader[targetSheet];
+        let idxRM = kolomDipilih.findIndex(c => c.title.toUpperCase().includes("RM"));
+
         const dataMentah = tabelExcel.getData();
-        const dataBersih = dataMentah.filter(baris => baris.join('').trim() !== '');
+        
+        // 💡 BUNGKUS NO RM DENGAN KUTIP SEBELUM MENDARAT DI SPREADSHEET
+        const dataBersih = dataMentah.filter(baris => baris.join('').trim() !== '').map(baris => {
+            let rowCpy = [...baris];
+            if (idxRM !== -1 && rowCpy[idxRM]) {
+                // Beri prefix kutip tunggal agar Google Sheets tidak menghilangkan nol di depan
+                rowCpy[idxRM] = "'" + formatRM(rowCpy[idxRM]);
+            }
+            return rowCpy;
+        });
 
         if (dataBersih.length === 0) {
             alert("Tabel masih kosong! Silakan paste atau ketik data terlebih dahulu."); return;
         }
 
-        const targetSheet = document.getElementById('sheetTujuan').value;
         const pesan = isFinalMode ? 
             `Siap mengirim FINAL ${dataBersih.length} data pasien?\n\nSistem akan mengunci entri ini. Jika klaim masih ada yang ditolak BPJS, statusnya tetap bisa Anda perbarui dari halaman Admin Jaspel Individu.` : 
             `Simpan ${dataBersih.length} data pasien sebagai Draf (Save State) di ${targetSheet}?`;
