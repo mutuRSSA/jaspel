@@ -174,8 +174,28 @@
             minDimensions: [kolomDipilih.length, 50],
             defaultColWidth: 100,
             tableOverflow: true, tableWidth: "100%", tableHeight: "65vh",
-            contextMenu: function() { return false; },
             
+            // 💡 MENGAKTIFKAN KLIK KANAN KHUSUS UNTUK BARIS
+            contextMenu: function(obj, x, y, e) {
+                var items = [];
+                if (y !== null) {
+                    items.push({
+                        title: '⬆️ Sisipkan Baris di Atas',
+                        onclick: function() { obj.insertRow(1, parseInt(y), 1); }
+                    });
+                    items.push({
+                        title: '⬇️ Sisipkan Baris di Bawah',
+                        onclick: function() { obj.insertRow(1, parseInt(y)); }
+                    });
+                    items.push({ type: 'line' });
+                    items.push({
+                        title: '❌ Hapus Baris Ini',
+                        onclick: function() { obj.deleteRow(parseInt(y)); }
+                    });
+                }
+                return items;
+            },
+                       
             // FUNGSI PINTAR: INTERSEPTOR & PENERJEMAH COPY PASTE EXCEL
             onbeforechange: function(instance, cell, x, y, value) {
                 if (value === null || value === undefined) return value;
