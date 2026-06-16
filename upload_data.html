@@ -102,9 +102,14 @@
         return String(val).trim();
     }
 
+    // 💡 FUNGSI RM YANG SUDAH DIBENAHI UNTUK PASIEN KECELAKAAN
     function formatRM(rm) {
         let str = String(rm).trim();
         if(!str || str === "" || str === "undefined") return "";
+        
+        // Pengecualian khusus untuk pasien tanpa RM
+        if (str === "-") return "-"; 
+
         if (str.includes('#')) return str; 
         str = str.replace(/[^0-9]/g, ''); 
         if (str.length === 0) return "";
@@ -195,7 +200,7 @@
     }
 
     // ===============================================
-    // 💡 LOGIKA 2: KASIR RAWAT INAP (UMUM & JR) (REVISI)
+    // LOGIKA 2: KASIR RAWAT INAP (UMUM & JR)
     // ===============================================
     function logicKasirRanapUmum(workbook) {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonSheet = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ""}); 
@@ -217,23 +222,22 @@
             barisUmum[7] = dokter; 
             barisUmum[9] = jenisKasus; 
             
-            // 💡 REVISI: Pemetaan Indeks Kolom Database Ranap Umum (Indeks mulai 0)
-            barisUmum[17] = Number(row[12])||0; // Pendaftaran Sarana (Kolom Excel R)
-            barisUmum[18] = Number(row[13])||0; // Pendaftaran Pelayanan (Kolom Excel S)
+            barisUmum[17] = Number(row[12])||0; 
+            barisUmum[18] = Number(row[13])||0; 
             
-            barisUmum[19] = Number(row[14])||0; // Tindakan IGD Sarana (Kolom Excel T)
-            barisUmum[20] = Number(row[15])||0; // Tindakan IGD Pelayanan (Kolom Excel U)
+            barisUmum[19] = Number(row[14])||0; 
+            barisUmum[20] = Number(row[15])||0; 
             
-            barisUmum[21] = Number(row[16])||0; // Tindakan Sarana (Kolom Excel V)
-            barisUmum[22] = Number(row[17])||0; // Tindakan Pelayanan (Kolom Excel W)
+            barisUmum[21] = Number(row[16])||0; 
+            barisUmum[22] = Number(row[17])||0; 
             
-            barisUmum[23] = Number(row[18])||0; // Laboratorium Sarana (Kolom Excel X)
-            barisUmum[24] = (Number(row[19])||0) + (Number(row[20])||0); // Laboratorium Pelayanan + Cito (Kolom Excel Y)
+            barisUmum[23] = Number(row[18])||0; 
+            barisUmum[24] = (Number(row[19])||0) + (Number(row[20])||0); 
             
-            barisUmum[25] = Number(row[21])||0; // Radiologi Sarana (Kolom Excel Z)
-            barisUmum[26] = (Number(row[22])||0) + (Number(row[23])||0); // Radiologi Pelayanan + Cito (Kolom Excel AA)
+            barisUmum[25] = Number(row[21])||0; 
+            barisUmum[26] = (Number(row[22])||0) + (Number(row[23])||0); 
             
-            barisUmum[27] = Number(row[24])||0; // Farmasi (Total) Langsung (Kolom Excel AB)
+            barisUmum[27] = Number(row[24])||0; 
 
             payloadRanapUmum.push(barisUmum); 
             if(limitPreview < 50) previewHtml += `<tr><td><span class="status-badge" style="background:#e0e7ff; color:#3730a3;">RANAP UMUM</span></td><td>${tanggal}</td><td style="font-family:monospace;">${rm}</td><td>${nama}</td><td>${dokter}</td><td>${jenisKasus}</td><td>${jenisPasien}</td></tr>`; 
